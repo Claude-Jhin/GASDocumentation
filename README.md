@@ -1,7 +1,7 @@
 ﻿# GAS文档
 
 <font color=#999AAA >
-本文档是针对[原英文文档](./README.md)的中文译作，目的是以中文还原、学习和传播作者针对GAS的独到理解。翻译的过程会结合[虚幻官方文档](https://docs.unrealengine.com/4.27/zh-CN/InteractiveExperiences/GameplayAbilitySystem/)中使用的术语标准，但是针对一些通用的概念，核心类，以及一些从业人员需要掌握的基础英文词汇，译者在做一些简单的解释后，还是会偏向于直接使用英文原单词 </font> 
+本文档是针对[原英文文档](./README.md)的中文译作，目的是以中文还原、学习和传播作者针对GAS的独到理解。翻译的过程会结合[虚幻官方文档](https://docs.unrealengine.com/4.27/zh-CN/InteractiveExperiences/GameplayAbilitySystem/) 中使用的术语标准，但是针对一些通用的概念，核心类，以及一些从业人员需要掌握的基础英文词汇，译者在做一些简单的解释后，还是会偏向于直接使用英文原单词 </font> 
 
 这是我的一个简单多人案例项目，其中蕴含了我对虚幻引擎中Gameplay技能系统（Gameplay Ability System，简称GAS）插件的理解。首先需要说明的是，这并不是一份官方文档，这个项目以及我本身都并不归属于Epic Games。出于这点考虑，我并不会保障这篇文档中涉及到的信息的准确性。
 
