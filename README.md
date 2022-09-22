@@ -1706,10 +1706,11 @@ Epic的[Action RPG Sample Project](https://www.unrealengine.com/marketplace/en-U
 ### 4.6 游戏技能 - Gameplay Abilities
 
 <a name="concepts-ga-definition"></a>
+
 #### 4.6.1 游戏技能的定义 - Gameplay Ability Definition
 [`GameplayAbilities`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/UGameplayAbility/index.html)（常简称`GA`），是游戏中`Actor`可以完成的任意的动作或者技能。在同一时间，可以同时存在且激活的`GameplayAbility`的数量并没有限制，比如说冲刺能力和射击的能力就可以同时存在。这些`GameplayAbilities`在蓝图或者C++中都可以实现。
 
-适宜使用`GameplayAbilities`来实现的动作举例：
+适合使用`GameplayAbilities`来实现的动作举例：
 * Jumping - 跳跃
 * Sprinting - 冲刺
 * Shooting a gun - 持枪射击
@@ -1734,15 +1735,15 @@ Epic的[Action RPG Sample Project](https://www.unrealengine.com/marketplace/en-U
 简单的`GameplayAbility`流程图：
 ![Simple GameplayAbility Flowchart](https://github.com/tranek/GASDocumentation/raw/master/Images/abilityflowchartsimple.png)
 
-
 稍微复杂一些的`GameplayAbility`流程图：
 ![Complex GameplayAbility Flowchart](https://github.com/tranek/GASDocumentation/raw/master/Images/abilityflowchartcomplex.png)
 
 复杂的技能也可以使用多个互相之间交互（激活、取消等）的`GameplayAbilities`来实现。
 
 <a name="concepts-ga-definition-reppolicy"></a>
+
 ##### 4.6.1.1 复制策略 - Replication Policy
-不要使用这个选项。本身这个名字存在一定的误导性，你要知道你并不需要这个。默认情况下[`GameplayAbilitySpecs`](#concepts-ga-spec)就会被从服务端复制到所属服务器。上面也提到过，**`GameplayAbilities`不会在模拟代理上运行**。他们使用`AbilityTasks`和`GameplayCues`来复制或者远程过程调用可视化的变化到模拟代理。Epic的Dave Ratti也表明他希望能够[在未来删除这个选项](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89).
+不要使用这个选项。本身这个名字存在一定的误导性，你要知道其实你并不需要关心这个。默认情况下[`GameplayAbilitySpecs`](#concepts-ga-spec)就会被从服务端复制到所属服务器。上面也提到过，**`GameplayAbilities`不会在模拟代理上运行**。他们使用`AbilityTasks`和`GameplayCues`来复制或者远程过程调用可视化的变化到模拟代理。Epic的Dave Ratti也表明他希望能够[在未来删除这个选项](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89).
 
 <a name="concepts-ga-definition-remotecancel"></a>
 ##### 4.6.1.2 服务器端远程技能取消 - Server Respects Remote Ability Cancellation
@@ -1750,7 +1751,7 @@ Epic的[Action RPG Sample Project](https://www.unrealengine.com/marketplace/en-U
 
 <a name="concepts-ga-definition-repinputdirectly"></a>
 ##### 4.6.1.3 直接对输入的复制 - Replicate Input Directly
-启用这个选项将会一直把输入的按下和释放事件复制给服务器。Epic并不建议这样使用，取而代之的，最好使用内置到已存在的输入相关的[`AbilityTasks`](#concepts-at)的`Generic Replicated Events`，如果你将你的[输入绑定到`ASC`](#concepts-ga-input)。
+启用这个选项将会一直把输入的按下和释放事件复制给服务器。Epic并不建议这样使用，取而代之的，最好使用内置到已存在的输入相关的[`AbilityTasks`](#concepts-at)的`Generic Replicated Events`，前提是你已经将你的[输入绑定到`ASC`](#concepts-ga-input)。
 
 Epic留下的注释：
 ```c++
@@ -2077,6 +2078,7 @@ UAbilitySystemComponent::GetActivatableGameplayAbilitySpecsByAllMatchingTags(con
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-commit"></a>
+
 #### 4.6.12 技能的消耗和冷却 - Ability Cost and Cooldown
 `GameplayAbilities`会带有可选的消耗和冷却的功能。技能消耗是为了激活由`Instant`类型的 `GameplayEffect`（[` Cost GE`](#concepts-ge-cost)）实现的`GameplayAbility`，所预定义的所需某些`Attributes`的数量。技能冷却则是为了控制`GameplayAbility`的重新激活所设定的计时器，其实现是通过一个`Duration`类型的`GameplayEffect` （[`Cooldown GE`](#concepts-ge-cooldown)）。
 
@@ -2089,6 +2091,7 @@ UAbilitySystemComponent::GetActivatableGameplayAbilitySpecsByAllMatchingTags(con
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-leveling"></a>
+
 #### 4.6.13 升级技能 - Leveling Up Abilities
 对于提升技能等级这件事，有两种通常的做法：
 
@@ -2102,6 +2105,7 @@ UAbilitySystemComponent::GetActivatableGameplayAbilitySpecsByAllMatchingTags(con
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-ga-sets"></a>
+
 #### 4.6.14 技能组 - Ability Sets
 `GameplayAbilitySets`是一系列便捷的`UDataAsset`类，可以用来存储输入绑定以及角色的初始的`GameplayAbilities`的列表。可以继承它然后再添加一些额外的逻辑和属性。Paragon项目中为每个英雄准备了一个`GameplayAbilitySet`，其中包含了所有的赋予到其身上的`GameplayAbilities`.
 
@@ -2111,27 +2115,27 @@ UAbilitySystemComponent::GetActivatableGameplayAbilitySpecsByAllMatchingTags(con
 
 <a name="concepts-ga-batching"></a>
 #### 4.6.15 技能批处理 - Ability Batching
-Traditional `Gameplay Ability` lifecycle involves a minimum of two or three RPCs from the client to the server.
+传统的`Gameplay Ability`的声明周期包含了至少两到三次的从客户端到服务端的RPC，即：
 
 1. `CallServerTryActivateAbility()`
-1. `ServerSetReplicatedTargetData()` (Optional)
+1. `ServerSetReplicatedTargetData()`（不是必须的）
 1. `ServerEndAbility()`
 
-If a `GameplayAbility` performs all of these actions in one atomic grouping in a frame, we can optimize this workflow to batch (combine) all two or three RPCs into one RPC. `GAS` refers to this RPC optimization as `Ability Batching`. The common example of when to use `Ability Batching` is for hitscan guns. Hitscan guns activate, do a line trace, send the [`TargetData`](#concepts-targeting-data) to the server, and end the ability all in one atomic group in one frame. The [GASShooter](https://github.com/tranek/GASShooter) sample project demonstrates this technique for its hitscan guns.
+如果`GameplayAbility`在一帧中的一个原子组内执行所有这些操作的话，我们可以将这两个到三个的RPC打包成一个RPC进而优化操作。`GAS`中将这种针对RPC的优化称为是`Ability Batching`，即技能的批处理。`Ability Batching`常见的一个使用情况就是扫射的枪械。枪械激活，执行一个射线检测，发送[`TargetData`](#concepts-targeting-data)到服务器，然后在一帧的一个原子组中结束技能。[GASShooter](https://github.com/tranek/GASShooter)示例工程中演示了这项技术的使用。
 
-Semi-Automatic guns are the best case scenario and batch the `CallServerTryActivateAbility()`, `ServerSetReplicatedTargetData()` (the bullet hit result), and `ServerEndAbility()` into one RPC instead of three RPCs.
+半自动枪械就是最好的案例，可以将`CallServerTryActivateAbility()`，`ServerSetReplicatedTargetData()`（子弹撞击结果），以及`ServerEndAbility()`打包到一个RPC而不是三个单独的RPC。
 
-Full-Automatic/Burst guns batch `CallServerTryActivateAbility()` and `ServerSetReplicatedTargetData()` for the first bullet into one RPC instead of two RPCs. Each subsequent bullet is its own `ServerSetReplicatedTargetData()` RPC. Finally, `ServerEndAbility()` is sent as a separate RPC when the gun stops firing. This is a worst case scenario where we only save one RPC on the first bullet instead of two. This scenario could have also been implemented with activating the ability via a [`Gameplay Event`](#concepts-ga-data) which would send the bullet's `TargetData` in with the `EventPayload` to the server from the client. The downside of the latter approach is that the `TargetData` would have to be generated externally to the ability whereas the batching approach generates the `TargetData` inside of the ability.
+全自动/爆破枪械可以将第一发子弹的`CallServerTryActivateAbility()`和`ServerSetReplicatedTargetData()`打包到一个RPC里而不是单独的两个RPC。后续的每发子弹则是它自己的`ServerSetReplicatedTargetData()`的RPC。最后，`ServerEndAbility()`则是作为一个单独的RPC，在枪械停火后发送。这种情况并不十分美好，我们仅仅在第一发子弹上节省了一个RPC。相对的，针对这种情况还有另外一种做法，即通过[`Gameplay Event`](#concepts-ga-data)来进行技能的激活，从而将子弹的`TargetData`放在`EventPayload`里从客户端发送到服务端。后面这种方法的不便之处就是`TargetData`其实是在技能之外生成的，而批处理的方法则是在技能里进行的生成过程。
 
-`Ability Batching` is disabled by default on the [`ASC`](#concepts-asc). To enable `Ability Batching`, override `ShouldDoServerAbilityRPCBatch()` to return true:
+`Ability Batching`默认在[`ASC`](#concepts-asc)上是关闭的。想要激活`Ability Batching`，需要重载`ShouldDoServerAbilityRPCBatch()`并返回true：
 
 ```c++
 virtual bool ShouldDoServerAbilityRPCBatch() const override { return true; }
 ```
 
-Now that `Ability Batching` is enabled, before activating abilities that you want batched, you must create a `FScopedServerAbilityRPCBatcher` struct beforehand. This special struct will try to batch any abilities following it within its scope. Once the `FScopedServerAbilityRPCBatcher` falls out of scope, any abilities activated will not try to batch. `FScopedServerAbilityRPCBatcher` works by having special code in each of the functions that can be batched that intercepts the call from sending the RPC and instead packs the message into a batch struct. When `FScopedServerAbilityRPCBatcher` falls out of scope, it automatically RPCs this batch struct to the server in `UAbilitySystemComponent::EndServerAbilityRPCBatch()`. The server receives the batch RPC in `UAbilitySystemComponent::ServerAbilityRPCBatch_Internal(FServerAbilityRPCBatch& BatchInfo)`. The `BatchInfo` parameter will contain flags for if the ability should end and if input was pressed at the time of activation and the `TargetData` if that was included. This is a good function to put a breakpoint on to confirm that your batching is working properly. Alternatively, use the cvar `AbilitySystem.ServerRPCBatching.Log 1` to enable special ability batching logging.
+现在`Ability Batching`已经被激活了，在激活你希望批处理的技能之前，你必须预先创建一个`FScopedServerAbilityRPCBatcher`。这个特殊的结构体将会试着去打包在其作用域内的任何技能。一旦`FScopedServerAbilityRPCBatcher`超出范围，其他任何技能都不会打包进去。`FScopedServerAbilityRPCBatcher`的工作原理是在每个可批处理的函数中都有特殊的代码，这些特殊代码可拦截发送RPC的调用，并将消息打包为批处理结构。当`FScopedServerAbilityRPCBatcher`超出作用域，它会自动 在`UAbilitySystemComponent::EndServerAbilityRPCBatch()`中将这个批结构发送到服务器。服务器会在`UAbilitySystemComponent::ServerAbilityRPCBatch_Internal(FServerAbilityRPCBatch& BatchInfo)`中接收这个批RPC。`BatchInfo`参数包含了一些标签：技能是否应该结束，输入是否在激活时已经按下，是否包含`TargetData`。如果你想想调试你的批处理是否正常工作，这里是个打断点的好地方。另外，可以使用控制台程序输入`AbilitySystem.ServerRPCBatching.Log 1`来激活特定的技能批处理的日志。
 
-This mechanism can only be done in C++ and can only activate abilities by their `FGameplayAbilitySpecHandle`.
+这一机制只能使用C++实现，并且只能通过`FGameplayAbilitySpecHandle`来激活技能。
 
 ```c++
 bool UGSAbilitySystemComponent::BatchRPCTryActivateAbility(FGameplayAbilitySpecHandle InAbilityHandle, bool EndAbilityImmediately)
@@ -2159,9 +2163,9 @@ bool UGSAbilitySystemComponent::BatchRPCTryActivateAbility(FGameplayAbilitySpecH
 }
 ```
 
-GASShooter reuses the same batched `GameplayAbility` for semi-automatic and full-automatic guns which never directly call `EndAbility()` (it is handled outside of the ability by a local-only ability that manages player input and the call to the batched ability based on the current firemode). Since all of the RPCs must happen within the scope of the `FScopedServerAbilityRPCBatcher`, I provide the `EndAbilityImmediately` parameter so that the controlling/managing local-only can specify whether this ability should batch the `EndAbility()` call (semi-automatic), or not batch the `EndAbility()` call (full-automatic) and the `EndAbility()` call will happen sometime later in its own RPC.
+GASShooter项目对半自动枪械和全自动枪械都是用了相同的批处理`GameplayAbility`，其并不是会直接调用`EndAbility()`来进行技能的结束（它是由技能外部的另外一个本地技能来管理，具体就是根据当前的开火模式来管理玩家的输入以及技能的批处理调用）。因为所有的RPC必须被在`FScopedServerAbilityRPCBatcher`的作用域内调用，我提供了一个`EndAbilityImmediately`参数，从而令本地的控制/管理能够指出这个技能是否应该打包 `EndAbility()`调用（半自动），亦或是不打包`EndAbility()`调用（全自动），这样它可以在后面的某个时间用自己的RPC来发送`EndAbility()`。
 
-GASShooter exposes a Blueprint node to allow batching abilities which the aforementioned local-only ability uses to trigger the batched ability.
+GASShooter项目中暴露了一个蓝图节点，用以在本地执行的技能中来出发技能批处理。
 
 ![Activate Batched Ability](https://github.com/tranek/GASDocumentation/raw/master/Images/batchabilityactivate.png)
 
