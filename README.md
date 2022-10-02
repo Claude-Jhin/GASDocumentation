@@ -2424,29 +2424,31 @@ virtual bool ShouldAsyncLoadRuntimeObjectLibraries() const override
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-batching"></a>
+
 #### 4.8.7 游戏反馈的批处理 - Gameplay Cue Batching
-Each `GameplayCue` triggered is an unreliable NetMulticast RPC. In situations where we fire multiple `GCs` at the same time, there are a few optimization methods to condense them down into one RPC or save bandwidth by sending less data.
+每个触发的`GameplayCue`都是一个不可靠的NetMulticast的RPC。在某些情况下，我们可能需要同一时间触发多个`GC`，对应着有着一些优化的处理方法，来将他们合并到一个RPC中，亦或是发送相对更少量的数据从而节省带宽。
 
 <a name="concepts-gc-batching-manualrpc"></a>
 ##### 4.8.7.1 手动远程过程调用 - Manual RPC
-Say you have a shotgun that shoots eight pellets. That's eight trace and impact `GameplayCues`. [GASShooter](https://github.com/tranek/GASShooter) takes the lazy approach of combining them into one RPC by stashing all of the trace information into the [`EffectContext`](#concepts-ge-ec) as [`TargetData`](#concepts-targeting-data). While this reduces the RPCs from eight to one, it still sends a lot of data over the network in that one RPC (~500 bytes). A more optimized approach is to send an RPC with a custom struct where you efficiently encode the hit locations or maybe you give it a random seed number to recreate/approximate the impact locations on the receiving side. The clients would then unpack this custom struct and turn back into [locally executed `GameplayCues`](#concepts-gc-local).
+假设你有一把能射八颗子弹的猎枪，这就会有8个射线检测和以及轨迹效果的`GameplayCues`。[GASShooter](https://github.com/tranek/GASShooter)中采用了一种偷懒的方法，它将所有的轨迹信息打包到一块儿以 [`TargetData`](#concepts-targeting-data)的格式存储到[`EffectContext`](#concepts-ge-ec) 。虽然这种方法将8个RPC减到了1个，但是这1个里直接包含了原先8个的信息，包含了大量的数据（约500b），仍然需要占用很多网络资源。针对这种情况，还有一种更好的处理方法，可以在要发送的RPC中用一个自定义的结构体，其中你可以高效编码命中位置的数据，或者放一个随机数种子，从而在接收端能够重建/拟合出冲击位置的数据信息。然后客户端就可以进行数据解包并将解析出来的数据刷到[本地执行的`GameplayCues`](#concepts-gc-local)。
 
-How this works:
-1. Declare a `FScopedGameplayCueSendContext`. This suppresses `UGameplayCueManager::FlushPendingCues()` until it falls out of scope, meaning all `GameplayCues` will be queued up until the `FScopedGameplayCueSendContext` falls out of scope.
-1. Override `UGameplayCueManager::FlushPendingCues()` to merge `GameplayCues` that can be batched together based on some custom `GameplayTag` into your custom struct and RPC it to clients.
-1. Clients receive the custom struct and unpack it into locally executed `GameplayCues`.
+具体操作步骤：
+1. 声明一个`FScopedGameplayCueSendContext`。它会自动阻止 `UGameplayCueManager::FlushPendingCues()`的执行，直到超出其作用域。这意味着其作用域内的所有的`GameplayCues`将会排成一个队列以供使用。
+1. 重写`UGameplayCueManager::FlushPendingCues()`，依据`GameplayTag`来合并`GameplayCues`到自定义的结构体，然后通过RPC发送到客户端。
+1. 客户端接收自定义结构体然后将其解包到本地执行的`GameplayCues`中。
 
-This method can also be used when you need specific parameters for your `GameplayCues` that don't fit with what `GameplayCueParameters` offer and you don't want to add them to the `EffectContext` like damage numbers, crit indicator, broken shield indicator, was fatal hit indicator, etc.
+这个方法也还有其他的适用情况，比如说你需要一些特定的参数，但是这些参数与`GameplayCueParameters`所提供的并不匹配，而且你也并不希望将其添加到`EffectContext`中，比如说伤害飘字，暴击提示，破盾提示，致命一击的提示等等。
 
 https://forums.unrealengine.com/development-discussion/c-gameplay-programming/1711546-fscopedgameplaycuesendcontext-gameplaycuemanager
 
 <a name="concepts-gc-batching-gcsonge"></a>
 ##### 4.8.7.2 一个游戏效果上带有多个游戏表现 - Multiple GCs on one GE
-All of the `GameplayCues` on a `GameplayEffect` are sent in one RPC already. By default, `UGameplayCueManager::InvokeGameplayCueAddedAndWhileActive_FromSpec()` will send the whole `GameplayEffectSpec` (but converted to `FGameplayEffectSpecForRPC`) in the unreliable NetMulticast regardless of the `ASC`'s `Replication Mode`. This could potentially be a lot of bandwidth depending on what is in the `GameplayEffectSpec`. We can potentially optimize this by setting the cvar `AbilitySystem.AlwaysConvertGESpecToGCParams 1`. This will convert `GameplayEffectSpecs` to `FGameplayCueParameter` structures and RPC those instead of the whole `FGameplayEffectSpecForRPC`. This potentially saves bandwidth but also has less information, depending on how the `GESpec` is converted to `GameplayCueParameters` and what your `GCs` need to know.
+一个`GameplayEffect`的全部`GameplayCues`都在一个RPC中发送。默认情况下，`UGameplayCueManager::InvokeGameplayCueAddedAndWhileActive_FromSpec()`将会通过不可靠的NetMulticast的RPC来发送整个`GameplayEffectSpec`（但会转换成`FGameplayEffectSpecForRPC`），这一点不会受到`ASC`的`Replication Mode`影响。依据`GameplayEffectSpec`中的内容的不同所占据的带宽可能会非常之不同（有可能会非常占用资源）。我们可以在控制台设置`AbilitySystem.AlwaysConvertGESpecToGCParams 1`来尝试进行优化。这会将`GameplayEffectSpecs`转换为`FGameplayCueParameter`结构，这样就不用发送整个 `FGameplayEffectSpecForRPC`。这样可能会节省一些带宽，但也会相对的少一些信息，具体取决于`GESpec`到`GameplayCueParameters`的转换方法以及具体你的`GCs`需要哪些信息。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-events"></a>
+
 #### 4.8.8 游戏反馈事件 - Gameplay Cue Events
 `GameplayCues`会去响应特定的`EGameplayCueEvents`：
 
@@ -2462,25 +2464,28 @@ All of the `GameplayCues` on a `GameplayEffect` are sent in one RPC already. By 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-gc-reliability"></a>
+
 #### 4.8.9 游戏反馈的可靠性 - Gameplay Cue Reliability
 
-`GameplayCues` in general should be considered unreliable and thus unsuited for anything that directly affects gameplay.
+`GameplayCues`通常被认为是不可靠的，因此不适合用来做那些会直接影响游玩的效果。
 
-**Executed `GameplayCues`:** These `GameplayCues` are applied via unreliable multicasts and are always unreliable.
+**已执行的`GameplayCues`：**这些`GameplayCues`是通过不可靠的多播而被应用的，所以全部是不可靠的。
 
-**`GameplayCues` applied from `GameplayEffects`:**
-* Autonomous proxy reliably receives `OnActive`, `WhileActive`, and `OnRemove`  
-`FActiveGameplayEffectsContainer::NetDeltaSerialize()` calls `UAbilitySystemComponent::HandleDeferredGameplayCues()` to call `OnActive` and `WhileActive`. `FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndModifiers()` makes the call to `OnRemoved`.
-* Simulated proxies reliably receive `WhileActive` and `OnRemove`  
-`UAbilitySystemComponent::MinimalReplicationGameplayCues`'s replication calls `WhileActive` and `OnRemove`. The `OnActive` event is called by an unreliable multicast.
+**从`GameplayEffects`应用的`GameplayCues`：**
 
-**`GameplayCues` applied without a `GameplayEffect`:**
-* Autonomous proxy reliably receives `OnRemove`  
-The `OnActive` and `WhileActive` events are called by an unreliable multicast.
-* Simulated proxies reliably receive `WhileActive` and `OnRemove`  
-`UAbilitySystemComponent::MinimalReplicationGameplayCues`'s replication calls `WhileActive` and `OnRemove`. The `OnActive` event is called by an unreliable multicast.
+* 主控端可靠得接收到`OnActive`，`WhileActive`，以及`OnRemove`  
+`FActiveGameplayEffectsContainer::NetDeltaSerialize()`调用`UAbilitySystemComponent::HandleDeferredGameplayCues()`来进行`OnActive`以及`WhileActive`的调用。 `FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndModifiers()` 则负责`OnRemoved`的调用。
+* 模拟端可靠得介绍到`WhileActive`和`OnRemove`  
+`UAbilitySystemComponent::MinimalReplicationGameplayCues`的复制调用`WhileActive`以及`OnRemove`。`OnActive`事件则是通过不可靠的多播来进行调用的。
 
-If you need something in a `GameplayCue` to be 'reliable', then apply it from a `GameplayEffect` and use `WhileActive` to add the FX and `OnRemove` to remove the FX.
+**`GameplayEffect`之外进行的`GameplayCues`的应用：**
+
+* 主控端可靠得接收到`OnRemove`  
+`OnActive`以及`WhileActive`事件是通过一个不可靠得多播来进行调用的。
+* 模拟端可靠得接收到`WhileActive`以及`OnRemove`  
+`UAbilitySystemComponent::MinimalReplicationGameplayCues`的复制调用`WhileActive`以及`OnRemove`。`OnActive`事件是由一个不可靠的多播进行调用的。
+
+如果你需要`GameplayCue`里的某样东西是可靠的，那么就利用`GameplayEffect`进行应用，并且使用`WhileActive`来添加特效，使用`OnRemove`来进行特效的移除。
 
 **[⬆ Back to Top](#table-of-contents)**
 
