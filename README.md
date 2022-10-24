@@ -2509,96 +2509,108 @@ AbilitySystemGlobalsClassName="/Script/ParagonAssets.PAAbilitySystemGlobals"
 
 <a name="concepts-p"></a>
 ### 4.10 预测 - Prediction
-GAS comes out of the box with support for client-side prediction; however, it does not predict everything. Client-side prediction in GAS means that the client does not have to wait for the server's permission to activate a `GameplayAbility` and apply `GameplayEffects`. It can "predict" the server giving it permission to do this and predict the targets that it would apply `GameplayEffects` to. The server then runs the `GameplayAbility` network latency-time after the client activates and tells the client if he was correct or not in his predictions. If the client was wrong in any of his predictions, he will "roll back" his changes from his "mispredictions" to match the server.
+GAS带有开箱即用的客户端预测的支持；但是，这并不意味着它能够完美预测所有的事情。GAS中的客户端预测意味着客户端不需要去等待服务器的许可就可以去激活`GameplayAbility`并且应用`GameplayEffects`。它也可以“预测”服务器给与它的许可并且预测它所应用`GameplayEffects`的目标。 在客户端激活后，服务器会在网络延迟的时间后运行`GameplayAbility`并且告诉客户端它所作的预测是否正确。如果客户端的预测中的某一项是错误的，它会对错误的预测进行回滚直到与服务器匹配为止。
 
-The definitive source for GAS-related prediction is `GameplayPrediction.h` in the plugin source code.
+GAS相关的预测内容是在插件源码中的`GameplayPrediction.h`里。
 
-Epic's mindset is to only predict what you "can get away with". For example, Paragon and Fortnite do not predict damage. Most likely they use [`ExecutionCalculations`](#concepts-ge-ec) for their damage which cannot be predicted anyway. This is not to say that you can't try to predict certain things like damage. By all means if you do it and it works well for you then that's great.
+Epic的思路是只去预测你需要应付的内容。例如，Paragon和Fortnite就不会去预测伤害的相关内容。最有可能的方案是，他们都使用了[`ExecutionCalculations`](#concepts-ge-ec)来进行伤害的处理，这也是无法进行预测的。当然，这并不是说你不可以去预测伤害或者跟其类似的东西，只是需要稍微进行一定的开发工作。
 
 > ... we are also not all in on a "predict everything: seamlessly and automatically" solution. We still feel player prediction is best kept to a minimum (meaning: predict the minimum amount of stuff you can get away with).
+>
+> 我们也并不是希望搞出一个“完美、自动的预测”的解决方案。我们依旧认为，玩家的预测最好保持在一个最低的限度，这意思是，只去预测你需要应付的那些内容，越少越好。
 
-*Dave Ratti from Epic's comment from the new [Network Prediction Plugin](#concepts-p-npp)*
+*摘自Dave Ratti关于新的[Network Prediction Plugin](#concepts-p-npp)网络预测插件的叙述*
 
-**What is predicted:**
-> * Ability activation
-> *	Triggered Events
-> *	GameplayEffect application:
->    * Attribute modification (EXCEPTIONS: Executions do not currently predict, only attribute modifiers)
->    * GameplayTag modification
-> * Gameplay Cue events (both from within predictive gameplay effect and on their own)
-> * Montages
-> * Movement (built into UE4 UCharacterMovement)
+**什么是可以预测的：**
 
-**What is not predicted:**
-> * GameplayEffect removal
-> * GameplayEffect periodic effects (dots ticking)
+> * 技能激活
+> *	触发事件
+> *	GameplayEffect的应用：
+>    * `Attribute`的修改（例外：`Executions`当前并不能够预测，只有`attribute modifiers`可以）
+>    * `GameplayTag`的修改
+> * `Gameplay Cue`事件（从可预测的GE里发出的以及从其自身发出的）
+> * 动画蒙太奇
+> * 移动（UE4内置的`UCharacterMovement`）
 
-*From `GameplayPrediction.h`*
+**什么是不可以预测的：**
 
-While we can predict `GameplayEffect` application, we cannot predict `GameplayEffect` removal. One way that we can work around this limitation is to predict the inverse effect when we want to remove a `GameplayEffect`. Say we predict a movement speed slow of 40%. We can predictively remove it by applying a movement speed buff of 40%. Then remove both `GameplayEffects` at the same time. This is not appropriate for every scenario and support for predicting `GameplayEffect` removal is still needed. Dave Ratti from Epic has expressed desire to add it to a [future iteration of GAS](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89).
+> * `GameplayEffect`的移除 removal
+> * `GameplayEffect`的周期性效果（比如dot效果）
 
-Because we cannot predict the removal of `GameplayEffects`, we cannot fully predict `GameplayAbility` cooldowns and there is no inverse `GameplayEffect` workaround for them. The server's replicated `Cooldown GE` will exist on the client and any attempts to bypass this (with `Minimal` replication mode for example) will be rejected by the server. This means clients with higher latencies take longer to tell the server to go on cooldown and to receive the removal of the server's `Cooldown GE`. This means players with higher latencies will have a lower rate of fire than players with lower latencies, giving them a disadvantage against lower latency players. Fortnite avoids this issue by using custom bookkeeping instead of `Cooldown GEs`.
+*摘自`GameplayPrediction.h`*
 
-Regarding predicting damage, I personally do not recommend it despite it being one of the first things that most people try when starting with GAS. I especially do not recommend trying to predict death. While you can predict damage, doing so is tricky. If you mispredict applying damage, the player will see the enemy's health jump back up. This can be especially awkward and frustrating if you try to predict death. Say you mispredict a `Character's` death and it starts ragdolling only to stop ragdolling and continue shooting at you when the server corrects it.
+虽然我们可以预测`GameplayEffect`的应用，我们却不能够预测`GameplayEffect`的移除。这个限制也有对应的解决之道，就是去预测我们希望移除的`GameplayEffect`的反效果。假设我们现在在预测一个速度减缓40%的效果。我们可以通过应用一个加速40%的速度buff来作为替代，最后再将两个效果同时移除。当然这并不是一劳永逸的完美的解决方法，我们还是需要有一个专门的针对`GameplayEffect`的移除的解决方案。Epic的Dave Ratti在[future iteration of GAS](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89)后续的迭代中能够逐步支持这个。
 
-**Note:** `Instant`	`GameplayEffects` (like `Cost GEs`) that change `Attributes` can be predicted on yourself seamlessly, predicting `Instant` `Attribute` changes to other characters will show a brief anomaly or "blip" in their `Attributes`. Predicted `Instant` `GameplayEffects` are actually treated like `Infinite` `GameplayEffects` so that they can be rolled back if mispredicted. When the server's `GameplayEffect` is applied, there potentially exists two of the same `GameplayEffect's` causing the `Modifier` to be applied twice or not at all for a brief moment. It will eventually correct itself but sometimes the blip is noticeable to players.
+因为我们不能预测`GameplayEffects`的移除，所以我们无法完美得预测`GameplayAbility`的冷却，因为并没有与之对应的相反效果的`GameplayEffect`。服务器复制的`Cooldown GE`将会存在于客户端，并且任何尝试去绕过这个（比如说使用`Minimal`复制模式）都会被服务器拒绝。这意味着高延迟的客户端需要花费更长的时间来告诉服务器需要去走冷却并接收服务器的`Cooldown GE`的移除。高延迟的玩家相较于低延迟的玩家，会有相对更低的技能发射频率，从而失去对战优势。Fortnite使用了自定义的方案来代替`Cooldown GEs`。
 
-Problems that GAS's prediction implementation is trying to solve:
+就预测伤害而言，我个人并不推荐，尽管大多数人一拿到GAS就首先去做的事情就是这个。我更不推荐去预测死亡。虽然你可以预测伤害，但是这可能会带来很多麻烦。如果你错误得预测了伤害，玩家就会看到敌人的生命值在来回来去得跳，如果这个错误发生在死亡的预测上的话，那可就更奇怪了。假设你错误得预测了`Character`的死亡，你所看到的表现是：敌人开始播放死亡动画（比如开始布娃娃系统的物理模拟），然后服务器将错误进行了纠正，敌人则要停止前面的模拟然后继续向你开火射击（译者注：在大部分情况下这都不是一种好的体验，在竞技型游戏中更是如此，想象一下你用枪击杀了对手，放下警戒，然后对手突然爬起来向你射击）。
+
+**注意：** `Instant`类型的`GameplayEffects`（如`Cost GEs`），对于这类可以改变的你自己的`Attributes`的效果，是可以无缝得进行预测；而预测其他角色`Instant`类型的 `Attribute`的变化则可能表现出短暂的异常。对 `Instant`类型的`GameplayEffects`的预测被和`Infinite`类型的`GameplayEffects`归为一类进行处理的，对这类的预测错误，则可以进行回滚。当服务器的`GameplayEffect`应用时，可能会存在有两个相同的`GameplayEffect`，会导致在短短一个瞬间，`Modifier`被重复应用两次，亦或是完全不被应用。最终服务器都会将问题进行修正，但是对于玩家来说，如果这个瞬间被注意到了，那么就会对游玩体验造成影响。
+
+GAS的预测解决方案试图去解决的一些问题
 > 1. "Can I do this?" Basic protocol for prediction.
 > 2. "Undo" How to undo side effects when a prediction fails.
 > 3. "Redo" How to avoid replaying side effects that we predicted locally but that also get replicated from the server.
 > 4. "Completeness" How to be sure we /really/ predicted all side effects.
 > 5. "Dependencies" How to manage dependent prediction and chains of predicted events.
 > 6. "Override" How to override state predictively that is otherwise replicated/owned by the server.
+>
+> 1. 我可以这样做吗？——预测的基本协议
+> 2. 撤销——当预测失败时如何撤销副作用
+> 3. 重播——如果避免重播我们本地预测和从服务器复制而来副作用
+> 4. 完整性——如果确保我们确实预测了所有的副作用
+> 5. 依赖性——如果管理依赖性预测和预测事件链条
+> 6. 覆盖——如果预测性得覆盖服务器原本已复制/拥有得状态
 
-*From `GameplayPrediction.h`*
+*摘自`GameplayPrediction.h`*
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-key"></a>
+
 #### 4.10.1 预测键 - Prediction Key
-GAS's prediction works on the concept of a `Prediction Key` which is an integer identifier that the client generates when he activates a `GameplayAbility`.
+GAS的预测的进行是基于一个名为`Prediction Key`预测键的概念，具体来说它是一个在客户端激活技能时所生成的一个整型标识符。
 
-* Client generates a prediction key when it activates a `GameplayAbility`. This is the `Activation Prediction Key`.
-* Client sends this prediction key to the server with `CallServerTryActivateAbility()`.
-* Client adds this prediction key to all `GameplayEffects` that it applies while the prediction key is valid.
-* Client's prediction key falls out of scope. Further predicted effects in the same `GameplayAbility` need a new [Scoped Prediction Window](#concepts-p-windows).
-
-
-* Server receives the prediction key from the client.
-* Server adds this prediction key to all `GameplayEffects` that it applies.
-* Server replicates the prediction key back to the client.
+* 客户端激活一个`GameplayAbility`时生成一个预测键，这就是`Activation Prediction Key`。
+* 客户端利用`CallServerTryActivateAbility()`发送这个预测键到服务器。
+* 当预测键有效时，客户端将这个预测键添加给所有它应用的`GameplayEffects`。
+* 客户端的预测键超出作用范围，在同一个`GameplayAbility`中进一步预测效果则需要一个新的[Scoped Prediction Window](#concepts-p-windows).
 
 
-* Client receives replicated `GameplayEffects` from the server with the prediction key used to apply them. If any of the replicated `GameplayEffects` match the `GameplayEffects` that the client applied with the same prediction key, they were predicted correctly. There will temporarily be two copies of the `GameplayEffect` on the target until the client removes its predicted one.
-* Client receives the prediction key back from the server. This is the `Replicated Prediction Key`. This prediction key is now marked stale.
-* Client removes **all** `GameplayEffects` that it created with the now stale replicated prediction key. `GameplayEffects` replicated by the server will persist. Any `GameplayEffects` that the client added and didn't receive a matching replicated version from the server were mispredicted.
+* 服务器从客户端接收预测键。
+* 服务器将这个预测键添加给所有它应用的`GameplayEffects`。
+* 服务器将预测键复制回客户端。
 
-Prediction keys are guaranteed to be valid during an atomic grouping of instructions "window" in `GameplayAbilities` starting with `Activation` from the activation prediction key. You can think of this as being only valid during one frame. Any callbacks from latent action `AbilityTasks` will no longer have a valid prediction key unless the `AbilityTask` has a built-in Synch Point which generates a new [Scoped Prediction Window](#concepts-p-windows).
+
+* 客户端从服务器接收复制的`GameplayEffects`，如果复制回来得到的`GameplayEffects`与客户端应用的`GameplayEffects`有着相同的预测键，那这意味着预测正确。在这个瞬时的时间点会同时有着两份`GameplayEffect`的拷贝，直到客户端将它预测的那个删除掉。
+* 客户端从服务器接收预测键。即`Replicated Prediction Key`。这个预测键现在被标记为旧的。
+* 客户端移除**所有的**标有旧的预测键的`GameplayEffects`。而由服务器复制得来的`GameplayEffects`将会被保留。任何客户端添加的但是却没有收到服务器返回版本的`GameplayEffects`都意味着预测的失败。
+
+在`Activation Prediction Key`中以`Activation`开头的`GameplayAbilities`中的一个原子指令组“window”期间，预测键保准有效。对于这句话你可以直接理解成仅在一帧内有效。任何后续`AbilityTasks`中的回调都不会有有效的预测键，除非`AbilityTask`中包含有内置的`Synch Point`同步点，其会生成一个新的[Scoped Prediction Window](#concepts-p-windows)。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-windows"></a>
 #### 4.10.2 在技能中创建新的预测窗口 - Creating New Prediction Windows in Abilities
-To predict more actions in callbacks from `AbilityTasks`, we need to create a new Scoped Prediction Window with a new Scoped Prediction Key. This is sometimes referred to as a Synch Point between the client and server. Some `AbilityTasks` like all of the input related ones come with built-in functionality to create a new scoped prediction window, meaning atomic code in the `AbilityTasks'` callbacks have a valid scoped prediction key to use. Other tasks like the `WaitDelay` task do not have built-in code to create a new scoped prediction window for its callback. If you need to predict actions after an `AbilityTask` that does not have built-in code to create a scoped prediction window like `WaitDelay`, we must manually do that using the `WaitNetSync` `AbilityTask` with the option `OnlyServerWait`. When the client hits a `WaitNetSync` with `OnlyServerWait`, it generates a new scoped prediction key based on the `GameplayAbility's` activation prediction key, RPCs it to the server, and adds it to any new `GameplayEffects` that it applies. When the server hits a `WaitNetSync` with `OnlyServerWait`, it waits until it receives the new scoped prediction key from the client before continuing. This scoped prediction key does the same dance as activation prediction keys - applied to `GameplayEffects` and replicated back to clients to be marked stale. The scoped prediction key is valid until it falls out of scope, meaning the scoped prediction window has closed. So again, only atomic operations, nothing latent, can use the new scoped prediction key.
+要预测`AbilityTasks`的回调中的更多的行为，我们需要用一个新的预测键创建一个新的范围预测窗口。这个有时候也称为是客户端和服务器之间的同步点。一些`AbilityTasks`，比如说所有的输入相关的那些，他们都内置了创建新的范围控制窗口的功能，意味着`AbilityTasks`的回调中的那些原子代码可以使用一个有效的预测键。其他的一些任务，如`WaitDelay`这种任务并没有内置的代码来为他的回调创建新的范围预测窗口。如果你希望去预测这样类型的`AbilityTask`，就必须手动调用`WaitNetSync`的`AbilityTask`，并选择`OnlyServerWait`。当客户端遇到带有`OnlyServerWait`的`WaitNetSync`时，它会基于`GameplayAbility`的激活预测键来生成一个新的范围预测键，利用RPC将其发送到服务器，再将其添加给它所应用的新的`GameplayEffects`。当服务器遇到带有`OnlyServerWait`的`WaitNetSync`，它将等待直到它从客户端接收到新的范围预测键才会继续。这个fa那位预测键的行为和激活预测键的行为基本一致 —— 应用到`GameplayEffects`并且复制回客户端，并标记为旧的。范围预测键在超出作用域时会失效，随即范围预测窗口关闭。所以在此强调，仅仅那些非延迟的原子操作可以使用新的范围预测键。
 
-You can create as many scoped prediction windows as you need.
+可以根据你的需求随意去创建范围预测窗口，不用担心数量。
 
-If you would like to add the synch point functionality to your own custom `AbilityTasks`, look at how the input ones essentially inject the `WaitNetSync` `AbilityTask` code into them.
+如果你为你定义的`AbilityTasks`添加同步点的功能，可以参考输入的那些技能任务是如何将`WaitNetSync`的`AbilityTask`嵌入其中的。
 
-**Note:** When using `WaitNetSync`, this does block the server's `GameplayAbility` from continuing execution until it hears from the client. This could potentially be abused by malicious users who hack the game and intentionally delay sending their new scoped prediction key. While Epic uses the `WaitNetSync` sparingly, it recommends potentially building a new version of the `AbilityTask` with a delay that automatically continues without the client if this is a concern for you.
+**注意：**当使用`WaitNetSync`时，它会阻塞服务器上`GameplayAbility`的执行，直到接收到客户端的消息。这一点可能会被恶意的玩家利用，他们会黑掉游戏，延迟发送新的范围预测键。Epic就较少使用`WaitNetSync`，如果你需要使用它，Epic的建议是你自己构建一个新的`AbilityTask`，能够在一定的延迟后自动继续而不一定非得等待客户端的消息而造成阻塞。
 
-The Sample Project uses `WaitNetSync` in the Sprint `GameplayAbility` to create a new scoped prediction window every time we apply the stamina cost so that we can predict it. Ideally we want a valid prediction key when applying costs and cooldowns.
+示例项目在冲刺的`GameplayAbility`中使用了`WaitNetSync`为每次应用体力消减效果都创建了一个新的范围预测窗口，这样就可以针对这一点进行预测。理想状况下，在应用消耗和冷却时我们都想要一个有效的预测键。
 
-If you have a predicted `GameplayEffect` that is playing twice on the owning client, your prediction key is stale and you're experiencing the "redo" problem. You can usually solve this by putting a `WaitNetSync` `AbilityTask` with `OnlyServerWait` right before you apply the `GameplayEffect` to create a new scoped prediction key.
+如果你由一个预测的`GameplayEffect`在其所属客户端上播放了两次，你的预测键被标记为旧的，并且遭遇了“redo”重播的问题。你通常可以在应用`GameplayEffect`之前使用一个带有`OnlyServerWait`的`WaitNetSync来创建一个新的范围预测键。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-spawn"></a>
 #### 4.10.3 预测性得生成Actors - Predictively Spawning Actors
-Spawning `Actors` predictively on clients is an advanced topic. GAS does not provide functionality to handle this out of the box (the `SpawnActor` `AbilityTask` only spawns the `Actor` on the server). The key concept is to spawn a replicated `Actor` on both the client and the server.
+在客户端预测性得生成 `Actors`是一个进阶的议题。GAS并没有提供现成的功能来解决这个（`SpawnActor`的`AbilityTask`只是在服务端生成`Actor` ）。这里的核心问题是要在客户端和服务器都生成一个复制的`Actor`。
 
-If the `Actor` is just cosmetic or doesn't serve any gameplay purpose, the simple solution is to override the `Actor's` `IsNetRelevantFor()` function to restrict the server from replicating to the owning client. The owning client would have his locally spawned version and the server and other clients would have the server's replicated version.
+如果`Actor`只是装饰性的，不带有任何的游玩逻辑，那么最简单的解决方案就是重写`Actor`的`IsNetRelevantFor()`函数限制从服务器到所属客户端的复制。所属客户端仅需要其本地生成的版本，而其他客户端和服务器则是使用服务器的复制版本。
 ```c++
 bool APAReplicatedActorExceptOwner::IsNetRelevantFor(const AActor * RealViewer, const AActor * ViewTarget, const FVector & SrcLocation) const
 {
@@ -2606,23 +2618,25 @@ bool APAReplicatedActorExceptOwner::IsNetRelevantFor(const AActor * RealViewer, 
 }
 ```
 
-If the spawned `Actor` affects gameplay like a projectile that needs to predict damage, then you need advanced logic that is outside of the scope of this documentation. Look at how UnrealTournament predictively spawns projectiles on Epic Games' GitHub. They have a dummy projectile spawned only on the owning client that synchs up with the server's replicated projectile.
+如果生成的`Actor`会影响游玩，比如说会产生伤害的子弹，那么你需要你就需要更加高阶的技巧，但是这并不包含在本文档内。可以在Epic Games的Github上查找UnrealTournament项目，其中实现了可预测得生成子弹。他是只在所属客户端上生成一个虚拟子弹，该虚拟子弹与服务器的复制子弹同步。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-future"></a>
+
 #### 4.10.4 技能系统中关于预测机制的未来规划 - Future of Prediction in GAS
-`GameplayPrediction.h` states in the future they could potentially add functionality for predicting `GameplayEffect` removal and periodic `GameplayEffects`.
+`GameplayPrediction.h`中提到在未来，他们可能还会加入预测`GameplayEffect`的移除和预测周期性 `GameplayEffects`的功能。
 
-Dave Ratti from Epic has [expressed interest](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89) in fixing the `latency reconciliation` problem for predicting cooldowns, disadvantaging players with higher latencies versus players with lower latencies.
+Epic的Dave Ratti from Epic提过[expressed interest](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89)，以解决预测冷却的`latency reconciliation`问题，从而让低延迟玩家比高延迟玩家更具备优势的问题得以解决。
 
-The new [`Network Prediction` plugin](#concepts-p-npp) by Epic is expected to be fully interoperable with the GAS like the `CharacterMovementComponent` *was* before it.
+Epic开发的新的[`Network Prediction` plugin](#concepts-p-npp)插件将会完美与GAS协调，就像`CharacterMovementComponent` 那样。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-p-npp"></a>
+
 #### 4.10.5 网络预测插件 - Network Prediction Plugin
-Epic recently started an initiative to replace the `CharacterMovementComponent` with a new `Network Prediction` plugin. This plugin is still in its very early stages but is available to very early access on the Unreal Engine GitHub. It's too soon to tell which future version of the Engine that it will make its experimental beta debut in.
+最近Epic发起了一项新的计划，即用新的`Network Prediction`替换掉`CharacterMovementComponent`。这个插件仍然处于早期的开发阶段，但是关于其的讨论在Unreal Engine GitHubs上已经非常热烈。现在还不太好讲未来在哪个版本我们会正式体验到。
 
 **[⬆ Back to Top](#table-of-contents)**
 
@@ -2631,52 +2645,52 @@ Epic recently started an initiative to replace the `CharacterMovementComponent` 
 
 <a name="concepts-targeting-data"></a>
 #### 4.11.1 目标数据 - Target Data
-[`FGameplayAbilityTargetData`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetData/index.html) is a generic structure for targeting data meant to be passed across the network. `TargetData` will typically hold `AActor`/`UObject` references, `FHitResults`, and other generic location/direction/origin information. However, you can subclass it to put essentially anything that you want inside of them as a simple means to [pass data between the client and server in `GameplayAbilities`](#concepts-ga-data). The base struct `FGameplayAbilityTargetData` is not meant to be used directly but instead subclassed. `GAS` comes with a few subclassed `FGameplayAbilityTargetData` structs out of the box located in `GameplayAbilityTargetTypes.h`.
+[`FGameplayAbilityTargetData`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetData/index.html)是一个通用的结构体，专为那些可以在网络上传递的目标数据使用。`TargetData`通常会保存`AActor`/`UObject`的引用，`FHitResults`以及其他一些通用的位置/方向/原点的信息。当然，你也可以对他进行派生，把你想要的任何东西塞到它里面，这是一种简单的通过`GameplayAbilities`来在客户端和服务器之间传递数据的方式。`FGameplayAbilityTargetData`结构体需要去派生出子类来进行使用，不要直接去进行使用。`GameplayAbilityTargetTypes.h`中罗列了一些为`GAS`准备的开箱即用的的`FGameplayAbilityTargetData`子类结构体。
 
-`TargetData` is typically produced by [`Target Actors`](#concepts-targeting-actors) or **created manually** and consumed by [`AbilityTasks`](#concepts-at) and [`GameplayEffects`](#concepts-ge) via the [`EffectContext`](#concepts-ge-context). As a result of being in the `EffectContext`, [`Executions`](#concepts-ge-ec), [`MMCs`](#concepts-ge-mmc), [`GameplayCues`](#concepts-gc), and the functions on the backend of the [`AttributeSet`](#concepts-as) can access the `TargetData`.
+`TargetData`通常是由[`Target Actors`](#concepts-targeting-actors)产生，或是手动创建，并且由[`AbilityTasks`](#concepts-at)和[`GameplayEffects`](#concepts-ge)通过[`EffectContext`](#concepts-ge-context)来进行使用。当`TargetData`作为`EffectContext`的结果时，[`Executions`](#concepts-ge-ec)， [`MMCs`](#concepts-ge-mmc)，[`GameplayCues`](#concepts-gc)以及[`AttributeSet`](#concepts-as)的一些默认方法都可以对其进行访问。
 
-We don't typically pass around the `FGameplayAbilityTargetData` directly, instead we use a [`FGameplayAbilityTargetDataHandle`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetDataHandle/index.html) which has an internal TArray of pointers to `FGameplayAbilityTargetData`. This intermediate struct provides support for polymorphism of the `TargetData`.
+通常我们不会去直接传递`FGameplayAbilityTargetData`，相对的，我们会去利用[`FGameplayAbilityTargetDataHandle`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FGameplayAbilityTargetDataHandle/index.html)，其内部存有一个`FGameplayAbilityTargetData`的数组指针。这个中间结构体会为`TargetData`的多态性提供支持。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-targeting-actors"></a>
 #### 4.11.2 目标Actor - Target Actors
-`GameplayAbilities` spawn [`TargetActors`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor/index.html) with the `WaitTargetData` `AbilityTask` to visualize and capture targeting information from the world. `TargetActors` may optionally use [`GameplayAbilityWorldReticles`](#concepts-targeting-reticles) to display current targets. Upon confirmation, the targeting information is returned as [`TargetData`](#concepts-targeting-data) which can then be passed into `GameplayEffects`.
+`GameplayAbilities`是利用`WaitTargetData`的`AbilityTask`来生成[`TargetActors`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor/index.html)，以显示和捕捉世界中的目标信息。`TargetActors`可以使用[`GameplayAbilityWorldReticles`](#concepts-targeting-reticles)来显示当前的目标。在目标确认后，目标的信息会以[`TargetData`](#concepts-targeting-data)的形式返回，然后可以进一步传递给`GameplayEffects`。
 
-`TargetActors` are based on `AActor` so they can have any kind of visible component to represent **where** and **how** they are targeting such as static meshes or decals. Static meshes may be used to visualize placement of an object that your character will build. Decals may be used to show an area of effect on the ground. The Sample Project uses [`AGameplayAbilityTargetActor_GroundTrace`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor_Grou-/index.html) with a decal on the ground to represent the damage area of effect for the Meteor ability. They also don't need to display anything either. For example it wouldn't make sense to display anything for a hitscan gun that instantly traces a line to its target as used in [GASShooter](https://github.com/tranek/GASShooter).
+`TargetActors`是派生自`AActor`，因此他们可以拥有任意类型的渲染组件（比如static mesh静态网格体或者decal贴花），来表示他们的位置以及他们如何进行目标选择。静态网格体可以用来显示你的角色所构建的物体。贴花可以用来显示地面上的相应作用区域。示例工程中使用了一个带有地面贴花的[`AGameplayAbilityTargetActor_GroundTrace`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityTargetActor_Grou-/index.html)，用以表示Meteor流星技能的伤害效果区域。`TargetActors`也可以不去显示任何东西。例如，[GASShooter](https://github.com/tranek/GASShooter)项目中的枪械弹药需要使用射线检测目标，但是这些一瞬间的检测并不需要显示任何东西。
 
-They capture targeting information using basic traces or collision overlaps and convert the results as `FHitResults` or `AActor` arrays to `TargetData` depending on the `TargetActor` implementation. The `WaitTargetData` `AbilityTask` determines when the targets are confirmed through its `TEnumAsByte<EGameplayTargetingConfirmation::Type> ConfirmationType` parameter. When **not** using `TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant`, the `TargetActor` typically performs the trace/overlap on `Tick()` and updates its location to the `FHitResult` depending on its implementation. While this performs a trace/overlap on `Tick()`, it's generally not terrible since it's not replicated and you typically don't have more than one (although you could have more) `TargetActor` running at a time. Just be aware that it uses `Tick()` and some complex `TargetActors` might do a lot on it like the rocket launcher's secondary ability in GASShooter. While tracing on `Tick()` is very responsive to the client, you may consider lowering the tick rate on the `TargetActor` if the performance hit is too much. In the case of `TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant`, the `TargetActor` immediately spawns, produces `TargetData`, and destroys. `Tick()` is never called.
+`TargetActors`会利用基本的射线或者碰撞检测来捕获目标信息，并且可以根据`TargetActor`的具体实现将结果从`FHitResults`或者`AActor`数组转换为`TargetData`。`WaitTargetData`的`AbilityTask`可以根据`TEnumAsByte<EGameplayTargetingConfirmation::Type> ConfirmationType`的参数来决定目标在什么时候确定。当**不是**`TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant`时，`TargetActor`通常会在`Tick()`中去作射线碰撞检测，并且根据其具体实现去将其位置更新到`FHitResult`中。尽管这是一个在`Tick()`中执行的射线碰撞检测，但是实际上你并不太需要为此担心性能问题，意味它并不需要进行网络复制，而且你通常也同一时间也不会有超过一个的`TargetActor`（这说的是更通常的情况，当然系统并没有限制同一时间的数量）。但是这件事你还是需要知道的，有些时候一些复杂的`TargetActors`可能会在`Tick()`中做非常多的操作，比如GASShooter项目中火箭发射器的第二个技能。尽管在客户端`Tick()`是非常灵敏的（即其执行次数高于服务端），但是当其开始对性能产生较大影响时你可能需要考虑降低`TargetActor`的`Tick()`频率。在`TEnumAsByte<EGameplayTargetingConfirmation::Type::Instant`时，`TargetActor`会瞬间生成，产生`TargetData`数据，然后销毁。这样，就永远不会涉及到`Tick()`的调用。
 
-| `EGameplayTargetingConfirmation::Type` | When targets are confirmed                                                                                                                                                                                                                                                                                                                                     |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Instant`                              | The targeting happens instantly without special logic or user input deciding when to 'fire'.                                                                                                                                                                                                                                                                   |
-| `UserConfirmed`                        | The targeting happens when the user confirms the targeting when the [ability is bound to a `Confirm` input](#concepts-ga-input) or by calling `UAbilitySystemComponent::TargetConfirm()`. The `TargetActor` will also respond to a bound `Cancel` input or call to `UAbilitySystemComponent::TargetCancel()` to cancel targeting.                              |
-| `Custom`                               | The GameplayTargeting Ability is responsible for deciding when the targeting data is ready by calling `UGameplayAbility::ConfirmTaskByInstanceName()`. The `TargetActor` will also respond to `UGameplayAbility::CancelTaskByInstanceName()` to cancel targeting.                                                                                              |
-| `CustomMulti`                          | The GameplayTargeting Ability is responsible for deciding when the targeting data is ready by calling `UGameplayAbility::ConfirmTaskByInstanceName()`. The `TargetActor` will also respond to `UGameplayAbility::CancelTaskByInstanceName()` to cancel targeting. Should not end the `AbilityTask` upon data production.                                       |
+| `EGameplayTargetingConfirmation::Type` | 目标确认的时机                                               |
+| -------------------------------------- | ------------------------------------------------------------ |
+| `Instant`                              | 没有特殊逻辑或者用户输入决定何时去“开火”的情况下，目标的选取会立即发生。 |
+| `UserConfirmed`                        | 在用户通过技能绑定到`Confirm`的输入进而确认了目标亦或是通过调用`UAbilitySystemComponent::TargetConfirm()`表明目标的确认时，目标的选取就发生了。`TargetActor`同样也会去相应`Cancel`的输入或者`UAbilitySystemComponent::TargetCancel()`的调用从而取消目标的选择。 |
+| `Custom`                               | 技能中通过调用`UGameplayAbility::ConfirmTaskByInstanceName()`来决定具体的`targeting data`准备好的时机。同样，`TargetActor`也会响应`UGameplayAbility::CancelTaskByInstanceName()`来取消目标的选择。 |
+| `CustomMulti`                          | 同上，其不同之处在于数据生成时不会去结束掉这个`AbilityTask`。 |
 
-Not every EGameplayTargetingConfirmation::Type is supported by every `TargetActor`. For example, `AGameplayAbilityTargetActor_GroundTrace` does not support `Instant` confirmation.
+并不是每个`TargetActor`都支持所有的`EGameplayTargetingConfirmation::Type`。例如，`AGameplayAbilityTargetActor_GroundTrace`就不支持`Instant`类型的确认。
 
-The `WaitTargetData` `AbilityTask` takes in a `AGameplayAbilityTargetActor` class as a parameter and will spawn an instance on each activation of the `AbilityTask` and will destroy the `TargetActor` when the `AbilityTask` ends. The `WaitTargetDataUsingActor` `AbilityTask` takes in an already spawned `TargetActor`, but still destroys it when the `AbilityTask` ends. Both of these `AbilityTasks` are inefficient in that they either spawn or require a newly spawned `TargetActor` for each use. They're great for prototyping, but in production you might explore optimizing it if you have cases where you are constantly producing `TargetData` like in the case of an automatic rifle. GASShooter has a custom subclass of [`AGameplayAbilityTargetActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/GSGATA_Trace.h) and a new [`WaitTargetDataWithReusableActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/AbilityTasks/GSAT_WaitTargetDataUsingActor.h) `AbilityTask` written from scratch that allows you to reuse a `TargetActor` without destroying it.
+`WaitTargetData`的`AbilityTask`中有一个`AGameplayAbilityTargetActor`类作为参数，其会在每次这个技能任务激活时生成一个`TargetActor`的实例，而在`AbilityTask`结束时销毁这个实例。`WaitTargetDataUsingActor`的`AbilityTask`可以传入一个已经生成好的`TargetActor`，同样会在技能任务结束时销毁该实例。这两种`AbilityTasks`都是低效的，在每次使用时都需要生成或者需要一个生成好的`TargetActor`。对于开发游戏原型来说他们是可以开箱即用的，但是正式的开发可能就需要进行进一步优化，比如某些情况下你需要不间断得生成`TargetData`，像那种自动来复枪。GASShooter项目中有一个自定义的[`AGameplayAbilityTargetActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/GSGATA_Trace.h)的派生类，以及一个全新的[`WaitTargetDataWithReusableActor`](https://github.com/tranek/GASShooter/blob/master/Source/GASShooter/Public/Characters/Abilities/AbilityTasks/GSAT_WaitTargetDataUsingActor.h) 的`AbilityTask`，在这个任务中你可以重复使用`TargetActor`而无需一直去处理销毁的问题。
 
-`TargetActors` are not replicated by default; however, they can be made to replicate if that makes sense in your game to show other players where the local player is targeting. They do include default functionality to communicate with the server via RPCs on the `WaitTargetData` `AbilityTask`. If the `TargetActor`'s `ShouldProduceTargetDataOnServer` property is set to `false`, then the client will RPC its `TargetData` to the server on confirmation via `CallServerSetReplicatedTargetData()` in `UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()`. If `ShouldProduceTargetDataOnServer` is `true`, the client will send a generic confirm event, `EAbilityGenericReplicatedEvent::GenericConfirm`, RPC to the server in `UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()` and the server will do the trace or overlap check upon receiving the RPC to produce data on the server. If the client cancels the targeting, it will send a generic cancel event, `EAbilityGenericReplicatedEvent::GenericCancel`, RPC to the server in `UAbilityTask_WaitTargetData::OnTargetDataCancelledCallback`. As you can see, there are a lot of delegates on both the `TargetActor` and the `WaitTargetData` `AbilityTask`. The `TargetActor` responds to inputs to produce and broadcast `TargetData` ready, confirm, or cancel delegates. `WaitTargetData` listens to the `TargetActor`'s `TargetData` ready, confirm, and cancel delegates and relays that information back to the `GameplayAbility` and to the server. If you send `TargetData` to the server, you may want to do validation on the server to make sure the `TargetData` looks reasonable to prevent cheating. Producing the `TargetData` directly on the server avoids this issue entirely, but will potentially lead to mispredictions for the owning client.
+`TargetActors`在默认情况下是不进行复制的。但是，如果你的游戏中有需要向其他玩家公开你所选目标的这样的需求的话，就需要用到`TargetActors`的复制了，当然这完全是可以实现的。`WaitTargetData`的`AbilityTask`中也包含了利用RPC和服务器进行通信的默认功能。如果`TargetActor`的`ShouldProduceTargetDataOnServer`属性设置为`false`，那么客户端在确定目标时会通过`UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()`中的`CallServerSetReplicatedTargetData()`来将`TargetData`利用RPC发送给服务器。如果`ShouldProduceTargetDataOnServer`是`true`，客户端将发送一个通用的确认事件，即`EAbilityGenericReplicatedEvent::GenericConfirm`，在`UAbilityTask_WaitTargetData::OnTargetDataReadyCallback()`利用RPC方法传递给服务器，然后服务器将会基于接收到的RPC来做射线和碰撞检测，进而在服务器上生成数据。如果客户端取消了目标选择，它会发出一个通用的取消事件，即`EAbilityGenericReplicatedEvent::GenericCancel`，在`UAbilityTask_WaitTargetData::OnTargetDataCancelledCallback`中利用RPC的方法传递给客户端。如你所见，`TargetActor`和`WaitTargetData`的`AbilityTask`上都存在着非常多的委托。`TargetActor`响应输入并且广播`TargetData`准备就绪、确认或者是取消的委托。`WaitTargetData`监听`TargetActor`的`TargetData`准备就绪、确认以及取消的委托，并且将这些信息返回给`GameplayAbility`和服务器。如果你发送`TargetData`给服务器，你可能希望在服务器上进行确认操作，以便确认`TargetData`是否是合理的（防止作弊的发生）。直接在服务器上生成`TargetData`的话会完全避免这个问题，但是可能会导致所属客户端的预测的失败。
 
-Depending on the particular subclass of `AGameplayAbilityTargetActor` that you use, different `ExposeOnSpawn` parameters will be exposed on the `WaitTargetData` `AbilityTask` node. Some common parameters include:
+根据你所使用的`AGameplayAbilityTargetActor`的特定派生类的不同，`WaitTargetData`的`AbilityTask`节点上也会相应的暴露不同的`ExposeOnSpawn`参数。其中共享的部分有：
 
-| Common `TargetActor` Parameters | Definition                                                                                                                                                                                                                                                                                                               |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Debug                           | If `true`, it will draw debug tracing/overlapping information whenever the `TargetActor` performs a trace in non-shipping builds. Remember, non-`Instant` `TargetActors` will perform a trace on `Tick()` so these debug draw calls will also happen on `Tick()`.                                                        |
-| Filter                          | [Optional] A special struct for filtering out (removing) `Actors` from the targets when the trace/overlap happens. Typical use cases are to filter out the player's `Pawn`, require targets be of a specific class. See [Target Data Filters](#concepts-target-data-filters) for more advanced use cases. |
-| Reticle Class                   | [Optional] Subclass of `AGameplayAbilityWorldReticle` that the `TargetActor` will spawn.                                                                                                                                                                                                                                 |
-| Reticle Parameters              | [Optional] Configure your Reticles. See [Reticles](#concepts-targeting-reticles).                                                                                                                                                                                                                                        |
-| Start Location                  | A special struct for where tracing should start from. Typically this will be the player's viewpoint, a weapon muzzle, or the `Pawn`'s location.                                                                                                                                                                          |
+| 共享的 `TargetActor` 上的参数 | 定义                                                         |
+| ----------------------------- | ------------------------------------------------------------ |
+| Debug                         | 如果为`true`时，那么在非发行版的版本中它会去帮我们绘制所有的射线和碰撞检测的信息。请记住，非`Instant`的`TargetActors`将会在`Tick()`中去做检测，那么自然，这些绘制内容也是在`Tick()`中完成的（译者注：相对来说射线检测的消耗还可以接收，但是其绘制的消耗可能会非常爆炸）。 |
+| Filter                        | [可选] 一个特定的结构体，用来在射线检测时对`Actors`进行过滤。通常的用法是去过滤玩家的`Pawn`，只允许某个特定类型的目标。参考[Target Data Filters](#concepts-target-data-filters)小节获取更多相关内容。 |
+| Reticle Class                 | [可选] `TargetActor`所要创建的`AGameplayAbilityWorldReticle`的派生类。 |
+| Reticle Parameters            | [可选] 配置光标。参考[Reticles](#concepts-targeting-reticles)的小结。 |
+| Start Location                | 一个特定的结构体，其中包含了射线检测的开始位置的信息。通常会是玩家的视口、武器枪口，亦或是`Pawn`的位置。 |
 
-With the default `TargetActor` classes, `Actors` are only valid targets when they are directly in the trace/overlap. If they leave the trace/overlap (they move or you look away), they are no longer valid. If you want the `TargetActor` to remember the last valid target(s), you will need to add this functionality to a custom `TargetActor` class. I refer to these as persistent targets as they will persist until the `TargetActor` receives confirmation or cancellation, the `TargetActor` finds a new valid target in its trace/overlap, or the target is no longer valid (destroyed). GASShooter uses persistent targets for its rocket launcher's secondary ability's homing rockets targeting.
+默认的`TargetActor`类中，`Actors`只有在被射线检测到或者碰撞检测到才是有效的目标。如果他们离开射线和碰撞检测的范围（他们移动了或者你的移开了视线），那么他们就不再有效。如果你希望`TargetActor`记住之前的有效目标（们），那么你需要去自己实现自定义的`TargetActor`类。我称其为永久目标，因为他们的存在会一直持续到`TargetActor`接收到目标的确认和取消事件，或者是`TargetActor`找到了一个新的有效目标，还有或者是目标不再有效（即其被销毁了）。GASShooter项目中将这种方式应用到火箭发射器的第二个技能上。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-target-data-filters"></a>
 #### 4.11.3 目标数据过滤器 - Target Data Filters
-Using both the `Make GameplayTargetDataFilter` and `Make Filter Handle` nodes, you can filter out the player's `Pawn` or select only a specific class. If you need more advanced filtering, you can subclass `FGameplayTargetDataFilter` and override the `FilterPassesForActor` function.
+通过使用`Make GameplayTargetDataFilter`和`Make Filter Handle`节点，你可以过滤玩家的`Pawn`或者只去选择某个特定的类。如果你需要更多高级的过滤效果，你可以在`FGameplayTargetDataFilter`基础上进一步派生，并且重写其中的`FilterPassesForActor`函数。
 ```c++
 USTRUCT(BlueprintType)
 struct GASDOCUMENTATION_API FGDNameTargetDataFilter : public FGameplayTargetDataFilter
@@ -2688,7 +2702,7 @@ struct GASDOCUMENTATION_API FGDNameTargetDataFilter : public FGameplayTargetData
 };
 ```
 
-However, this will not work directly into the `Wait Target Data` node as it requires a `FGameplayTargetDataFilterHandle`. A new custom `Make Filter Handle` must be made to accept the subclass:
+但是，这并不会直接令其在`Wait Target Data`节点上生效，因为它还需要一个`FGameplayTargetDataFilterHandle`。还需要再构建一个新的自定义的`Make Filter Handle`来收扩展出来的派生类：
 ```c++
 FGameplayTargetDataFilterHandle UGDTargetDataFilterBlueprintLibrary::MakeGDNameFilterHandle(FGDNameTargetDataFilter Filter, AActor* FilterActor)
 {
@@ -2705,12 +2719,12 @@ FGameplayTargetDataFilterHandle UGDTargetDataFilterBlueprintLibrary::MakeGDNameF
 
 <a name="concepts-targeting-reticles"></a>
 #### 4.11.4 游戏技能的世界标线 - Gameplay Ability World Reticles
-[`AGameplayAbilityWorldReticles`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityWorldReticle/index.html) (`Reticles`) visualize **who** you are targeting when targeting with non-`Instant` confirmed [`TargetActors`](#concepts-targeting-actors). `TargetActors` are responsible for the spawn and destroy lifetimes for all `Reticles`. `Reticles` are `AActors` so they can use any kind of visual component for representation. A common implementation as seen in [GASShooter](https://github.com/tranek/GASShooter) is to use a `WidgetComponent` to display a UMG Widget in screen space (always facing the player's camera). `Reticles` do not know which `AActor` that they're on, but you could subclass in that functionality on a custom `TargetActor`. `TargetActors` will typically update the `Reticle`'s location to the target's location on every `Tick()`.
+[`AGameplayAbilityWorldReticles`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/AGameplayAbilityWorldReticle/index.html)，即`Reticles`，当你利用非`Instant`确定出[`TargetActors`](#concepts-targeting-actors)，它会帮你从视觉表现方面显示你当前正在选择的目标。`TargetActors`会负责`Reticles`从生成到销毁的整个生命周期。`Reticles`本质上是`AActors`，因此他们可以使用任意类型的可视化组件。[GASShooter](https://github.com/tranek/GASShooter)实现了一个它的常见的用法，即使用`WidgetComponent`来在屏幕空间中显示一个UMG Widget类型的控件（总是朝向玩家摄像机）。`Reticles`并不知道他们的目标是具体哪一个`AActor`，但是你可以在自定义的`TargetActor`进一步实现这个功能。`TargetActors`通常会在每个`Tick()`内去更新`Reticle`的位置到目标的位置（译者注：目标位置的世界控空间位置转到屏幕空间的二维空间位置）。
 
-GASShooter uses `Reticles` to show locked-on targets for the rocket launcher's secondary ability's homing rockets. The red indicator on the enemy is the `Reticle`. The similar white image is the rocket launcher's crosshair.
+GASShooter中使用`Reticles`来显示被火箭发射器的第二个技能锁定的目标。敌人身上的红色的指示图标就是`Reticle`。而相同样式的白色的那个则是火箭发射器的准星。
 ![Reticles in GASShooter](https://github.com/tranek/GASDocumentation/raw/master/Images/gameplayabilityworldreticle.png)
 
-`Reticles` come with a handful of `BlueprintImplementableEvents` for designers (they're intended to be developed in Blueprints):
+`Reticles`提供了一些对设计者可能有用的`BlueprintImplementableEvents`（他们就是被设计来在蓝图中进行拓展开发的）：
 
 ```c++
 /** Called whenever bIsTargetValid changes value. */
@@ -2731,17 +2745,17 @@ UFUNCTION(BlueprintImplementableEvent, Category = Reticle)
 void SetReticleMaterialParamVector(FName ParamName, FVector value);
 ```
 
-`Reticles` can optionally use [`FWorldReticleParameters`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FWorldReticleParameters/index.html) provided by the `TargetActor` for configuration. The default struct only provides one variable `FVector AOEScale`. While you can technically subclass this struct, the `TargetActor` will only accept the base struct. It seems a little short-sighted to not allow this to be subclassed with default `TargetActors`. However, if you make your own custom `TargetActor`, you can provide your own custom reticle parameters struct and manually pass it to your subclass of `AGameplayAbilityWorldReticles` when you spawn them.
+`Reticles`也可以使用由`TargetActor`提供的[`FWorldReticleParameters`](https://docs.unrealengine.com/en-US/API/Plugins/GameplayAbilities/Abilities/FWorldReticleParameters/index.html)来进行配置。默认的结构体只提供了一个变量`FVector AOEScale`。尽管你可以去派生这个结构体，但是`TargetActor`只会去接收默认的基类结构体。从设计层面看，默认的`TargetActor`在`FWorldReticleParameters`上的限制可能看起来显得有些目光短浅。但是，如果你自定义了自己的`TargetActor`，你也可以提供你自己自定义的标线参数结构体，然后在生成他们的时候手动将其传递给你的`AGameplayAbilityWorldReticles`的派生类中。
 
-`Reticles` are not replicated by default, but can be made replicated if it makes sense for your game to show other players who the local player is targeting.
+`Reticles`默认情况下不会被复制，但是如果你的游戏有类似的需求，比如给其他玩家显示本地玩家锁定的敌人是你的游戏的设计之一的话，也可以将复制的选项打开。
 
-`Reticles` will only display on the current valid target with the default `TargetActors`. For example, if you're using a `AGameplayAbilityTargetActor_SingleLineTrace` to trace for a target, the `Reticle` will only appear when the enemy is directly in the trace path. If you look away, the enemy is no longer a valid target and the `Reticle` will disappear. If you want the `Reticle` to stay on the last valid target, you will want to customize your `TargetActor` to remember the last valid target and keep the `Reticle` on them. I refer to these as persistent targets as they will persist until the `TargetActor` receives confirmation or cancellation, the `TargetActor` finds a new valid target in its trace/overlap, or the target is no longer valid (destroyed).  GASShooter uses persistent targets for its rocket launcher's secondary ability's homing rockets targeting.
+默认的`TargetActors`中，`Reticles`只会在当前有效的目标上显示。例如，如果你使用了一个`AGameplayAbilityTargetActor_SingleLineTrace`来检测一个目标，那么`Reticle`将只会在目标直接暴露在检测路径上时出现。如果你看向别的什么地方，那么此时敌人就不再是一个有效的目标，那么`Reticle`就自动消失了。如果你希望`Reticle`停留在最后一个有效目标身上，你就需要自定义你的`TargetActor`，让其记住最后一个有效目标并保留`Reticle`到目标身上。我建议是将他们作为永久目标，因为他们会一直存在直到`TargetActor`接收到确认或者取消的指令，或者`TargetActor`通过检测找到了一个新的有效目标，或者目标不再有效（被销毁了）。GASShooter项目中就应用这个方案到火箭发射器的第二个技能上了。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="concepts-targeting-containers"></a>
 #### 4.11.5 游戏效果容器的目标 - Gameplay Effect Containers Targeting
-[`GameplayEffectContainers`](#concepts-ge-containers) come with an optional, efficient means of producing [`TargetData`](#concepts-targeting-data). This targeting takes places instantly when the `EffectContainer` is applied on the client and the server. It's more efficient than [`TargetActors`](#concepts-targeting-actors) because it runs on the CDO of the targeting object (no spawning and destroying of `Actors`), but it lacks player input, happens instantly without needing confirmation, cannot be canceled, and cannot send data from the client to the server (produces data on both). It works well for instant traces and collision overlaps. Epic's [Action RPG Sample Project](https://www.unrealengine.com/marketplace/en-US/product/action-rpg) includes two example types of targeting with its containers - target the ability owner and pull `TargetData` from an event. It also implements one in Blueprint to do instant sphere traces at some offset (set by child Blueprint classes) from the player. You can subclass `URPGTargetType` in C++ or Blueprint to make your own targeting types.
+[`GameplayEffectContainers`](#concepts-ge-containers)中提供了一个可选的，高效的生成[`TargetData`](#concepts-targeting-data)的方法。在客户端和服务器上应用`EffectContainer`时就会立马进行目标的选择。这个方法要远比[`TargetActors`](#concepts-targeting-actors)的方式更加高效，因为它是直接运行在目标选择的对象的CDO（译者注：Class Default Object，可以理解为类的一个默认单例对象）上的，相对于需要去生成和销毁的`Actors`对象来说当然更加高效。但是它会缺少玩家的输入，没有确认取消的过程，也不能够从客户端往服务器发送数据（因为它在两端都会执行）。对于立即触发的射线或者碰撞检测来说这非常有效。Epic的[Action RPG Sample Project](https://www.unrealengine.com/marketplace/en-US/product/action-rpg)项目中，在其容器中包含了两种类型的目标选择——选择技能的释放者，以及从某个事件中获取到`TargetData`。它也在蓝图中实现了一个去做球体的轨迹检测。你可以派生`URPGTargetType`来制作你自己的目标类型。
 
 **[⬆ Back to Top](#table-of-contents)**
 
