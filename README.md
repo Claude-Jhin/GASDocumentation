@@ -2763,40 +2763,46 @@ void SetReticleMaterialParamVector(FName ParamName, FVector value);
 ## 5. 常见的技能和效果 - Commonly Implemented Abilities and Effects
 
 <a name="cae-stun"></a>
+
 ### 5.1 眩晕 - Stun
-Typically with stuns, we want to cancel all of a `Character's` active `GameplayAbilities`, prevent new `GameplayAbility` activations, and prevent movement throughout the duration of the stun. The Sample Project's Meteor `GameplayAbility` applies a stun on hit targets.
 
-To cancel the target's active `GameplayAbilities`, we call `AbilitySystemComponent->CancelAbilities()` when the stun [`GameplayTag` is added](#concepts-gt-change).
+通常在眩晕效果下，我们希望取消`Character`所有的处于激活状态的`GameplayAbilities`，同时阻止新的`GameplayAbility`的激活甚至是移动。示例项目中的流星`GameplayAbility`就会给其命中的目标施加一个眩晕的效果。
 
-To prevent new `GameplayAbilities` from activating while stunned, the `GameplayAbilities` are given the stun `GameplayTag` in their [`Activation Blocked Tags` `GameplayTagContainer`](#concepts-ga-tags).
+要取消目标身上激活的`GameplayAbilities`，我们可以在[相应`GameplayTag`被添加时](#concepts-gt-change)时调用`AbilitySystemComponent->CancelAbilities()`。
 
-To prevent movement while stunned, we override the `CharacterMovementComponent's` `GetMaxSpeed()` function to return 0 when the owner has the stun `GameplayTag`.
+要实现阻止新的`GameplayAbilities`的激活的效果，可以在其他技能上把眩晕的`GameplayTag`设置到他们的[`Activation Blocked Tags`的`GameplayTagContainer`上](#concepts-ga-tags)。
+
+要阻止角色的移动，我们可以重写`CharacterMovementComponent`的`GetMaxSpeed()`函数，将其当所有者拥有眩晕的`GameplayTag`时令这个函数返回0。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-sprint"></a>
+
 ### 5.2 冲刺 - Sprint
-The Sample Project provides an example of how to sprint - run faster while `Left Shift` is held down.
 
-The faster movement is handled predictively by the `CharacterMovementComponent` by sending a flag over the network to the server. See `GDCharacterMovementComponent.h/cpp` for details.
+示例项目中还提供了一个关于冲刺的例子，即当`Left Shift`按下时角色可以跑得更快一些。
 
-The `GA` handles responding to the `Left Shift` input, tells the `CMC` to begin and stop sprinting, and to predictively charge stamina while `Left Shift` is pressed. See `GA_Sprint_BP` for details.
+快速移动可以由`CharacterMovementComponent`负责预测处理，具体就是通过网络发送一个标记到服务器。参考`GDCharacterMovementComponent.h/cpp`。
+
+`GA`会处理`Left Shift`对应的输入响应，通知角色移动组件去开启或者停止冲刺，并且预测性得消耗体力值。参考`GA_Sprint_BP`。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-ads"></a>
+
 ### 5.3 瞄准 - Aim Down Sights
-The Sample Project handles this the exact same way as sprinting but decreasing the movement speed instead of increasing it.
 
-See `GDCharacterMovementComponent.h/cpp` for details on predictively decreasing the movement speed.
+示例项目中，瞄准的做法和冲刺的做法基本一致，只是把加速换成了减速。
 
-See `GA_AimDownSight_BP` for details on handling the input. There is no stamina cost for aiming down sights.
+具体参阅`GDCharacterMovementComponent.h/cpp`中关于减速的内容。
+
+参阅`GA_AimDownSight_BP`中关于输入的处理的内容。当然，瞄准并不会消耗体力。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-ls"></a>
 ### 5.4 生命偷取 - Lifesteal
-I handle lifesteal inside of the damage [`ExecutionCalculation`](#concepts-ge-ec). The `GameplayEffect` will have a `GameplayTag` on it like `Effect.CanLifesteal`. The `ExecutionCalculation` checks if the `GameplayEffectSpec` has that `Effect.CanLifesteal` `GameplayTag`. If the `GameplayTag` exists, the `ExecutionCalculation` [creates a dynamic `Instant` `GameplayEffect`](#concepts-ge-dynamic) with the amount of health to give as the modifier and applies it back to the `Source's` `ASC`.
+我将生命偷取内置在伤害计算的[`ExecutionCalculation`](#concepts-ge-ec)内。`GameplayEffect`会有一个专门的`GameplayTag`，比如`Effect.CanLifesteal`这样的。`ExecutionCalculation`会去检查`GameplayEffectSpec`是否有这样的一个`GameplayTag`。如果这个`GameplayTag`存在，那么`ExecutionCalculation` [会去创建一个动态的`Instant`类型的`GameplayEffect`](#concepts-ge-dynamic)，并且给它一个增加生命值的`modifier`，然后把他应用到`Source`的`ASC`。
 
 ```c++
 if (SpecAssetTags.HasTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.CanLifesteal"))))
@@ -2821,12 +2827,12 @@ if (SpecAssetTags.HasTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.C
 
 <a name="cae-random"></a>
 ### 5.5 在服务端和客户端上生成随机数字 - Generating a Random Number on Client and Server
-Sometimes you need to generate a "random" number inside of a `GameplayAbility` for things like bullet recoil or spread. The client and the server will both want to generate the same random numbers. To do this, we must set the `random seed` to be the same at the time of `GameplayAbility` activation. You will want to set the `random seed` each time you activate the `GameplayAbility` in case the client mispredicts activation and its random number sequence becomes out of synch with the server's.
+有些时候你需要在`GameplayAbility`里生成随机数，比如子弹后坐力和扩散等。客户端和服务器当然需要同样的随机数。为了实现这个效果，我们必须在`GameplayAbility`激活的时候设置相同的`random seed`。每次去激活`GameplayAbility`的时候你都需要设置`random seed`，防止客户端预测激活失败并且随机数序列和服务器不同步。
 
-| Seed Setting Method                                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Use the activation prediction key                                            | The `GameplayAbility` activation prediction key is an int16 guaranteed to be synchronized and available in both the client and server in the `Activation()`. You can set this as the `random seed` on both the client and the server. The downside to this method is that the prediction key always starts at zero each time the game starts and consistently increments the value to use between generating keys. This means each match will have the exact same random number sequence. This may or may not be random enough for your needs. |
-| Send a seed through an event payload when you activate the `GameplayAbility` | Activate your `GameplayAbility` by event and send the randomly generated seed from the client to the server via the replicated event payload. This allows for more randomness but the client could easily hack their game to only send the same seed value every time. Also activating `GameplayAbilities` by event will prevent them from activating from the input bind.                                                                                                                                                                     |
+| 随机数种子设置方法                                 | 描述                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------ |
+| 使用激活预测键                                     | The `GameplayAbility` activation prediction key is an int16 guaranteed to be synchronized and available in both the client and server in the `Activation()`. You can set this as the `random seed` on both the client and the server. The downside to this method is that the prediction key always starts at zero each time the game starts and consistently increments the value to use between generating keys. This means each match will have the exact same random number sequence. This may or may not be random enough for your needs. |
+| 当你激活 `GameplayAbility`时，通过事件负载发送种子 | Activate your `GameplayAbility` by event and send the randomly generated seed from the client to the server via the replicated event payload. This allows for more randomness but the client could easily hack their game to only send the same seed value every time. Also activating `GameplayAbilities` by event will prevent them from activating from the input bind. |
 
 If your random deviation is small, most players won't notice that the sequence is the same every game and using the activation prediction key as the `random seed` should work for you. If you're doing something more complex that needs to be hacker proof, perhaps using a `Server Initiated` `GameplayAbility` would work better where the server can create the prediction key or generate the `random seed` to send via an event payload.
 
@@ -2834,27 +2840,28 @@ If your random deviation is small, most players won't notice that the sequence i
 
 <a name="cae-crit"></a>
 ### 5.6 暴击 - Critical Hits
-I handle critical hits inside of the damage [`ExecutionCalculation`](#concepts-ge-ec). The `GameplayEffect` will have a `GameplayTag` on it like `Effect.CanCrit`. The `ExecutionCalculation` checks if the `GameplayEffectSpec` has that `Effect.CanCrit` `GameplayTag`. If the `GameplayTag` exists, the `ExecutionCalculation` generates a random number corresponding to the critical hit chance (`Attribute` captured from the `Source`) and adds the critical hit damage (also an `Attribute` captured from the `Source`) if it succeeded. Since I don't predict damage, I don't have to worry about synchronizing the random number generators on the client and server since the `ExecutionCalculation` will only run on the server. If you tried to do this predictively using an `MMC` to do your damage calculation, you would have to get a reference to the `random seed` from the `GameplayEffectSpec->GameplayEffectContext->GameplayAbilityInstance`.
+我将暴击效果的实现内置在了[`ExecutionCalculation`](#concepts-ge-ec)中。`GameplayEffect`会有一个专门的`GameplayTag`，比如说像`Effect.CanCrit`。`ExecutionCalculation`会去检查`GameplayEffectSpec`是否拥有这个`GameplayTag`。如果`GameplayTag`存在的话，`ExecutionCalculation`会去生成一个随机的数字对应着暴击几率（从`Source`中取到的对应的`Attribute`值），然后加到暴击伤害（另外一个从`Source`中取到的对应的`Attribute`值）中。因为我并没有去预测伤害，我并不需要去担心随机数生成的同步问题，因为`ExecutionCalculation`只会在服务器上运行。如果你希望预测性得去使用`MMC`来处理伤害计算，那么你就需要从`GameplayEffectSpec->GameplayEffectContext->GameplayAbilityInstance`中拿到`random seed`的引用。
 
-See how [GASShooter](https://github.com/tranek/GASShooter) does headshots. It's the same concept except that it does not rely on a random number for chance and instead checks the `FHitResult` bone name.
+可以参考[GASShooter](https://github.com/tranek/GASShooter)项目中是如何实现爆头的。其本质就是本小节的内容，当然它并没有暴击率的设计，而是去检查`FHitResult`中命中的骨头的名称。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-nonstackingge"></a>
 ### 5.7 非可叠加游戏效果（仅取对目标影响最大者的游戏效果） - Non-Stacking Gameplay Effects but Only the Greatest Magnitude Actually Affects the Target
-Slow effects in Paragon did not stack. Each slow instance applied and kept track of their lifetimes as normal, but only the greatest magnitude slow effect actually affected the `Character`. GAS provides for this scenario out of the box with `AggregatorEvaluateMetaData`. See [`AggregatorEvaluateMetaData()`](#concepts-as-onattributeaggregatorcreated) for details and implementation.
+Paragon里的减速效果并不会堆叠。每一个减速实例正常应用并且正常追踪其生命周期，但是只有值最大的那一个才会在真正影响`Character`。GAS利用`AggregatorEvaluateMetaData`将这个效果做得开箱即用。可以参考[`AggregatorEvaluateMetaData()`](#concepts-as-onattributeaggregatorcreated)中的具体实现。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-paused"></a>
+
 ### 5.8 游戏暂停时生成目标数据 - Generate Target Data While Game is Paused
-If you need to pause the game while waiting to generate [`TargetData`](#concepts-targeting-data) from a `WaitTargetData` `AbilityTask` from your player, I suggest instead of pausing to use `slomo 0`.
+如果你需要为你的玩家在利用`WaitTargetData` `AbilityTask`来生成[`TargetData`](#concepts-targeting-data)时暂停游戏，我建议不去暂停游戏，而是使用`slomo 0`。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-onebuttoninteractionsystem"></a>
 ### 5.9 单按键交互系统 - One Button Interaction System
-[GASShooter](https://github.com/tranek/GASShooter) implements a one button interaction system where the player can press or hold 'E' to interact with interactable objects like reviving a player, opening a weapon chest, and opening or closing a sliding door.
+[GASShooter](https://github.com/tranek/GASShooter)实现了一个一键交互系统，其中玩家可以通过按下"E"来与可交互物进行交互，比如复活玩家，打开武器箱，以及打开或者关闭滑动门。
 
 **[⬆ Back to Top](#table-of-contents)**
 
