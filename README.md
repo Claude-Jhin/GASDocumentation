@@ -2801,6 +2801,7 @@ void SetReticleMaterialParamVector(FName ParamName, FVector value);
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-ls"></a>
+
 ### 5.4 生命偷取 - Lifesteal
 我将生命偷取内置在伤害计算的[`ExecutionCalculation`](#concepts-ge-ec)内。`GameplayEffect`会有一个专门的`GameplayTag`，比如`Effect.CanLifesteal`这样的。`ExecutionCalculation`会去检查`GameplayEffectSpec`是否有这样的一个`GameplayTag`。如果这个`GameplayTag`存在，那么`ExecutionCalculation` [会去创建一个动态的`Instant`类型的`GameplayEffect`](#concepts-ge-dynamic)，并且给它一个增加生命值的`modifier`，然后把他应用到`Source`的`ASC`。
 
@@ -2826,19 +2827,21 @@ if (SpecAssetTags.HasTag(FGameplayTag::RequestGameplayTag(FName("Effect.Damage.C
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-random"></a>
+
 ### 5.5 在服务端和客户端上生成随机数字 - Generating a Random Number on Client and Server
 有些时候你需要在`GameplayAbility`里生成随机数，比如子弹后坐力和扩散等。客户端和服务器当然需要同样的随机数。为了实现这个效果，我们必须在`GameplayAbility`激活的时候设置相同的`random seed`。每次去激活`GameplayAbility`的时候你都需要设置`random seed`，防止客户端预测激活失败并且随机数序列和服务器不同步。
 
 | 随机数种子设置方法                                 | 描述                                                         |
 | -------------------------------------------------- | ------------------------------------------------------------ |
-| 使用激活预测键                                     | The `GameplayAbility` activation prediction key is an int16 guaranteed to be synchronized and available in both the client and server in the `Activation()`. You can set this as the `random seed` on both the client and the server. The downside to this method is that the prediction key always starts at zero each time the game starts and consistently increments the value to use between generating keys. This means each match will have the exact same random number sequence. This may or may not be random enough for your needs. |
-| 当你激活 `GameplayAbility`时，通过事件负载发送种子 | Activate your `GameplayAbility` by event and send the randomly generated seed from the client to the server via the replicated event payload. This allows for more randomness but the client could easily hack their game to only send the same seed value every time. Also activating `GameplayAbilities` by event will prevent them from activating from the input bind. |
+| 使用激活预测键                                     | `GameplayAbility`的激活预测键是一个int16类型的数据，并且保证在客户端和服务器的`Activation()`是同步的。你可以将它作为客户端和服务器的`random seed`。这种方式的不好的地方在于这个预测键总是在游戏开始时从0开始，并且在每次生成键的时候持续增长，这意味着虽然数字是随机的，但是每次游玩过程中得到的整个数列却不是随机的。意思是这种方法提供的随机性有限。 |
+| 当你激活 `GameplayAbility`时，通过事件负载发送种子 | 即使用事件激活`GameplayAbility`并且由客户端向服务器通过复制的事件负载来发送随机生成的种子。这种方法能够提供足够的随机性，但是客户端就变得更加容易被攻击从而每次只去发送相同的种子值。而且通过事件激活`GameplayAbilities`将无法和输入进行绑定。 |
 
-If your random deviation is small, most players won't notice that the sequence is the same every game and using the activation prediction key as the `random seed` should work for you. If you're doing something more complex that needs to be hacker proof, perhaps using a `Server Initiated` `GameplayAbility` would work better where the server can create the prediction key or generate the `random seed` to send via an event payload.
+如果你的随机编程很小，大部分玩家都不会之一到每次游戏的随机数序列是相同的，那么第一种使用预测键的方法足够用了。如果你需要做一些稍复杂的需要防黑客的事情，也许使用`Server Initiated`的 `GameplayAbility` 更加合适，这样服务器可以创建预测键或是创建可以由事件负载发送的`random seed`。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-crit"></a>
+
 ### 5.6 暴击 - Critical Hits
 我将暴击效果的实现内置在了[`ExecutionCalculation`](#concepts-ge-ec)中。`GameplayEffect`会有一个专门的`GameplayTag`，比如说像`Effect.CanCrit`。`ExecutionCalculation`会去检查`GameplayEffectSpec`是否拥有这个`GameplayTag`。如果`GameplayTag`存在的话，`ExecutionCalculation`会去生成一个随机的数字对应着暴击几率（从`Source`中取到的对应的`Attribute`值），然后加到暴击伤害（另外一个从`Source`中取到的对应的`Attribute`值）中。因为我并没有去预测伤害，我并不需要去担心随机数生成的同步问题，因为`ExecutionCalculation`只会在服务器上运行。如果你希望预测性得去使用`MMC`来处理伤害计算，那么你就需要从`GameplayEffectSpec->GameplayEffectContext->GameplayAbilityInstance`中拿到`random seed`的引用。
 
@@ -2847,6 +2850,7 @@ If your random deviation is small, most players won't notice that the sequence i
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-nonstackingge"></a>
+
 ### 5.7 非可叠加游戏效果（仅取对目标影响最大者的游戏效果） - Non-Stacking Gameplay Effects but Only the Greatest Magnitude Actually Affects the Target
 Paragon里的减速效果并不会堆叠。每一个减速实例正常应用并且正常追踪其生命周期，但是只有值最大的那一个才会在真正影响`Character`。GAS利用`AggregatorEvaluateMetaData`将这个效果做得开箱即用。可以参考[`AggregatorEvaluateMetaData()`](#concepts-as-onattributeaggregatorcreated)中的具体实现。
 
@@ -2860,6 +2864,7 @@ Paragon里的减速效果并不会堆叠。每一个减速实例正常应用并�
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="cae-onebuttoninteractionsystem"></a>
+
 ### 5.9 单按键交互系统 - One Button Interaction System
 [GASShooter](https://github.com/tranek/GASShooter)实现了一个一键交互系统，其中玩家可以通过按下"E"来与可交互物进行交互，比如复活玩家，打开武器箱，以及打开或者关闭滑动门。
 
@@ -2964,28 +2969,30 @@ GAS相关的日志类别：
 ## 7. 优化 - Optimizations
 
 <a name="optimizations-abilitybatching"></a>
+
 ### 7.1 技能批处理 - Ability Batching
-[`GameplayAbilities`](#concepts-ga) that activate, optionally send `TargetData` to the server, and end all in one frame can be [batched to condense two-three RPCs into one RPC](#concepts-ga-batching). These types of abilities are commonly used for hitscan guns.
+[`GameplayAbilities`](#concepts-ga)的激活，发送`TargetData`到服务器（可选），并且结束这一切，如果这些都是在一帧内完成的话就可以[将两到三个RPC合并成一个](#concepts-ga-batching)。这些类型的技能常用于处理霰弹枪。
 
 <a name="optimizations-gameplaycuebatching"></a>
+
 ### 7.2 游戏反馈批处理 - Gameplay Cue Batching
-If you're sending many [`GameplayCues`](#concepts-gc) at the same time, consider [batching them into one RPC](#concepts-gc-batching). The goal is to reduce the number of RPCs (`GameplayCues` are unreliable NetMulticasts) and send as little data as possible.
+如果你要在同一时间发出许多个的[`GameplayCues`](#concepts-gc)，可以考虑将他们[合批到一个RPC中](#concepts-gc-batching)。这样可以有效减少RPC的数量（`GameplayCues`是`unreliable`的多播`NetMulticasts`），从而尽量发送少一些数据。
 
 <a name="optimizations-ascreplicationmode"></a>
 ### 7.3 技能系统组件的复制模式 - AbilitySystemComponent Replication Mode
-By default, the [`ASC`](#concepts-asc) is in [`Full Replication Mode`](#concepts-asc-rm). This will replicate all [`GameplayEffects`](#concepts-ge) to every client (which is fine for a single player game). In a multiplayer game, set the player owned `ASCs` to `Mixed Replication Mode` and AI controlled characters to `Minimal Replication Mode`. This will replicate `GEs` applied on a player character to only replicate to the owner of that character and `GEs` applied on AI controlled characters will never replicate `GEs` to clients. [`GameplayTags`](#concepts-gt) will still replicate and [`GameplayCues`](#concepts-gc) will still unreliable NetMulticast to all clients, regardless of the `Replication Mode`. This will cut down on network data from `GEs` being replicated when all clients don't need to see them.
+默认情况下，[`ASC`](#concepts-asc)是处于[`Full Replication Mode`](#concepts-asc-rm)模式。这会默认将所有的[`GameplayEffects`](#concepts-ge)复制到每个客户端（单人游戏来说没有任何问题）。在多人游戏中，将玩家拥有的`ASCs`设置为`Mixed Replication Mode`，将AI控制的角色设置为`Minimal Replication Mode`。这会把玩家角色上应用的`GEs`只复制给角色的拥有者，AI控制的角色将永远不会复制其`GEs`给客户端。[`GameplayTags`](#concepts-gt)将会复制并且[`GameplayCues`](#concepts-gc)依然会不可靠得广播给所有得客户端，而不管其`Replication Mode`是什么。当所有得客户端都不需要看到这些`GEs`时，这种做法能够有效减少复制的数据的量。
 
 <a name="optimizations-attributeproxyreplication"></a>
 ### 7.4 属性代理的复制 - Attribute Proxy Replication
-In large games with many players like Fortnite Battle Royale (FNBR), there will be a lot of [`ASCs`](#concepts-asc) living on always-relevant `PlayerStates` replicating a lot of [`Attributes`](#concepts-a). To optimize this bottleneck, Fortnite disables the `ASC` and its [`AttributeSets`](#concepts-as) from replicating altogether on **simulated player-controlled proxies** in the `PlayerState::ReplicateSubobjects()`. Autonomous proxies and AI controlled `Pawns` still fully replicate according to their [`Replication Mode`](#concepts-asc-rm). Instead of replicating `Attributes` on the `ASC` on the always-relevant `PlayerStates`, FNBR uses a replicated proxy structure on the player's `Pawn`. When `Attributes` change on the server's `ASC`, they are changed on the proxy struct too. The client receives the replicated `Attributes` from the proxy struct and pushes the changes back into its local `ASC`. This allows `Attribute` replication to use the `Pawn`'s relevancy and `NetUpdateFrequency`. This proxy struct also replicates a small white-listed set of `GameplayTags` in a bitmask. This optimization reduces the amount of data over the network and allows us to take advantage of pawn relevancy. AI controlled `Pawns` have their `ASC` on the `Pawn` which already uses its relevancy so this optimization is not needed for them.
+像Fortnite Battle Royale（FNBR）这样的有很多玩家的大型游戏，将会有很多的[`ASCs`](#concepts-asc)存在于对应的`PlayerStates`，并且会有大量要复制的[`Attributes`](#concepts-a)。为了应对这个瓶颈，Fortnite的做法是在 **模拟的玩家控制端**的`PlayerState::ReplicateSubobjects()`中禁用了 `ASC` 及其 [`AttributeSets`](#concepts-as) 的复制。主控端代理和AI控制的 `Pawns` 依然会根据其具体的 [`Replication Mode`](#concepts-asc-rm) 去进行各自的复制。相对的，在抛弃复制`PlayerStates` 对应的 `ASC` 上的`Attributes` 的做法后，FNBR在玩家的 `Pawn` 上使用了一个复制代理结构体。当服务器上的`ASC`上的 `Attributes` 改变时，其代理结构体也会随之发生改变。客户端从代理结构体中接收到复制的 `Attributes`，并且将其中包含的属性修改推到本地 `ASC` 中。这就可以令 `Attribute` 的复制利用到 `Pawn` 的相关机制以及 `NetUpdateFrequency`。这个代理结构体也可以使用位掩码复制一个小的`GameplayTags`的白名单组。这个做法可以减少网络上传递的数据的量，并且让我们能够利用到 `pawn`的相关内容。AI控制 `Pawns` 的 `ASC` 的位置是在 `Pawn` 上，其本身就已经用到这个机制，所以也不需要单独为他们去做这个优化。
 
 > I’m not sure if it is still necessary with other server side optimizations that have been done since then (Replication Graph, etc) and it is not the most maintainable pattern.
 
-*Dave Ratti from Epic's answer to [community questions #3](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89)*
+*Epic的Dave Ratti针对 [community questions #3](https://epicgames.ent.box.com/s/m1egifkxv3he3u3xezb9hzbgroxyhx89) 的回答*
 
 <a name="optimizations-asclazyloading"></a>
 ### 7.5 技能系统组件的延迟加载 - ASC Lazy Loading
-Fortnite Battle Royale (FNBR) has a lot of damageable `AActors` (trees, buildings, etc) in the world, each with an [`ASC`](#concepts-asc). This can add up in memory cost. FNBR optimizes this by lazily loading `ASCs` only when they're needed (when they first take damage by a player). This reduces overall memory usage since some `AActors` may never be damaged in a match.
+Fortnite Battle Royale（FNBR）的世界中有非常多的可以伤害的`AActors`（树，建筑等等），他们身上都会挂有[`ASC`](#concepts-asc)。这将增加内存的消耗。FNBR的策略是延迟加载这些`ASCs`，只在需要他们的时候才去加载（当这些物体被玩家施加伤害时）。这可以整体上减少相当可观的内存消耗，因为可能有些`AActors`在整局游戏中都不会被碰一下。
 
 **[⬆ Back to Top](#table-of-contents)**
 
@@ -2993,22 +3000,23 @@ Fortnite Battle Royale (FNBR) has a lot of damageable `AActors` (trees, building
 ## 8. 建议 - Quality of Life Suggestions
 
 <a name="qol-gameplayeffectcontainers"></a>
+
 ### 8.1 游戏效果容器 - Gameplay Effect Containers
-[GameplayEffectContainers](#concepts-ge-containers) combine [`GameplayEffectSpecs`](#concepts-ge-spec), [`TargetData`](#concepts-targeting-data), [simple targeting](#concepts-targeting-containers), and related functionality into easy to use structures. These are great for transfering `GameplayEffectSpecs` to projectiles spawned from an ability that will then apply them on collision at a later time.
+[GameplayEffectContainers](#concepts-ge-containers)将[`GameplayEffectSpecs`](#concepts-ge-spec)，[`TargetData`](#concepts-targeting-data)，[simple targeting](#concepts-targeting-containers)以及相关的整合到一个易用的结构体中。这样的结构非常适合那些从某个技能中生成的子弹，其转移了一些`GameplayEffectSpecs`，并且在之后的碰撞检测中用到这些数据信息。
 
 <a name="qol-asynctasksascdelegates"></a>
 ### 8.2 蓝图异步任务绑定到技能系统组件的委托 - Blueprint AsyncTasks to Bind to ASC Delegates
-To increase designer-friendly iteration times, especially when designing UMG Widgets for UI, create Blueprint AsyncTasks (in C++) to bind to the common change delegates on the `ASC` directly from your UMG Blueprint graphs. The only caveat is that they must be manually destroyed (like when the widget is destroyed) otherwise they will live in memory forever. The Sample Project includes three Blueprint AsyncTasks.
+为了提升设计者的开发迭代效率，特别是设计UI所使用的`UMG Widgets`，可以创建蓝图的`AsyncTasks`（原本是C++版本的），来进直接从UMG蓝图中去绑定`ASC`上的一些通用委托。唯一的一句提醒是，他们必须手动销毁（译者注：指的是那些委托，比如说当UI控件销毁的时候），否则他们将会一直存在于内存中。示例项目中包含了三个蓝图的`AsyncTasks`异步任务。
 
-Listen for `Attribute` changes:
+监听`Attribute`的变化：
 
 ![Listen for Attributes Changes BP Node](https://github.com/tranek/GASDocumentation/raw/master/Images/attributeschange.png)
 
-Listen for cooldown changes:
+监听冷却的变化：
 
 ![Listen for Cooldown Change BP Node](https://github.com/tranek/GASDocumentation/raw/master/Images/cooldownchange.png)
 
-Listen for `GE` stack changes:
+监听`GE`堆栈的变化：
 
 ![Listen for GameplayEffect Stack Change BP Node](https://github.com/tranek/GASDocumentation/raw/master/Images/gestackchange.png)
 
@@ -3019,25 +3027,25 @@ Listen for `GE` stack changes:
 
 <a name="troubleshooting-notlocal"></a>
 ### 9.1 `LogAbilitySystem: Warning: Can't activate LocalOnly or LocalPredicted ability %s when not local!`
-You need to [initialize the `ASC` on the client](#concepts-asc-setup).
+前面的章节提到过，你需要[在客户端对`ASC`组件进行初始化](#concepts-asc-setup).
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="troubleshooting-scriptstructcache"></a>
 ### 9.2 `ScriptStructCache` errors
-You need to call [`UAbilitySystemGlobals::InitGlobalData()`](#concepts-asg-initglobaldata).
+你需要调用[`UAbilitySystemGlobals::InitGlobalData()`](#concepts-asg-initglobaldata).
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="troubleshooting-replicatinganimmontages"></a>
-### 9.3 Animation Montages are not replicating to clients
-Make sure that you're using the `PlayMontageAndWait` Blueprint node instead of `PlayMontage` in your [GameplayAbilities](#concepts-ga). This [AbilityTask](#concepts-at) replicates the montage through the `ASC` automatically whereas the `PlayMontage` node does not.
+### 9.3 动画蒙太奇没有复制到客户端 - Animation Montages are not replicating to clients
+可以去确认一下在[GameplayAbilities](#concepts-ga)中尝试去播放蒙太奇时你是使用的 `PlayMontageAndWait` 的蓝图节点，而不是直接用 `PlayMontage` 节点。这个 [AbilityTask](#concepts-at) 会帮助你通过 `ASC` 去复制蒙太奇，而这是原本初始的 `PlayMontage` 无法实现的。
 
 **[⬆ Back to Top](#table-of-contents)**
 
 <a name="troubleshooting-duplicatingblueprintactors"></a>
-### 9.4 Duplicating Blueprint Actors is setting AttributeSets to nullptr
-There is a [bug in Unreal Engine](https://issues.unrealengine.com/issue/UE-81109) that will set `AttributeSet` pointers on your classes to nullptr for Blueprint Actor classes that are duplicated from existing Blueprint Actor classes. There are a few workarounds for this. I've had success not creating bespoke `AttributeSet` pointers on my classes (no pointer in the .h, not calling `CreateDefaultSubobject` in the constructor) and instead just directly adding `AttributeSets` to the `ASC` in `PostInitializeComponents()` (not shown in the Sample Project). The replicated `AttributeSets` will still live in the `ASC's` `SpawnedAttributes` array. It would look something like this:
+### 9.4 复制的Actor蓝图将AttributeSets指针指向空 - Duplicating Blueprint Actors is setting AttributeSets to nullptr
+当你利用已有的Actor蓝图去复制的时候，复制的蓝图上的`AttributeSet`指针会指向nullptr，这是 [Unreal Engine已知的一个bug](https://issues.unrealengine.com/issue/UE-81109)。针对这个问题现在以及有了一些应对方法。我已经成功测试过一种方法，不去在我的类中创建专门的 `AttributeSet` 指针（即不在.h文件中创建指针，也不在构造函数中调用 `CreateDefaultSubobject` ），取而代之的，我是直接在 `PostInitializeComponents()` 函数中将 `AttributeSets` 添加给 `ASC`（这一点并没有在示例项目中实现）。复制出来的 `AttributeSets` 也会正常出现在 `ASC` 的 `SpawnedAttributes` 数组之中。如下：
 
 ```c++
 void AGDPlayerState::PostInitializeComponents()
@@ -3052,7 +3060,7 @@ void AGDPlayerState::PostInitializeComponents()
 }
 ```
 
-In this scenario, you would read and set the values in the `AttributeSet` using the functions on the `ASC` instead of [calling functions on the `AttributeSet` made from the macros](#concepts-as-attributes).
+这种情况下，你就不能调用原先那种 [由宏为 `AttributeSet` 生成的方便的函数方法了](#concepts-as-attributes)，比如说那些很方便的访问器和构造器，当然`ASC` 也提供了一些原生的函数方法可以使用：
 
 ```c++
 /** Returns current (final) value of an attribute */
@@ -3062,7 +3070,7 @@ float GetNumericAttribute(const FGameplayAttribute &Attribute) const;
 void SetNumericAttributeBase(const FGameplayAttribute &Attribute, float NewBaseValue);
 ```
 
-So the `GetHealth()` would look something like:
+比如哦，现在要实现 `GetHealth()` 方法的话，如下：
 
 ```c++
 float AGDPlayerState::GetHealth() const
@@ -3076,7 +3084,7 @@ float AGDPlayerState::GetHealth() const
 }
 ```
 
-Setting (initializing) the health `Attribute` would look something like:
+设置（初始化）生命值的 `Attribute` 方法如下：
 
 ```c++
 const float NewHealth = 100.0f;
@@ -3086,7 +3094,7 @@ if (AbilitySystemComponent)
 }
 ```
 
-As a reminder, the `ASC` only ever expects at most one `AttributeSet` object per `AttributeSet` class.
+这里再提醒一个前面小节提到过的问题，`ASC` 只允许每个 `AttributeSet` 类型有一个 `AttributeSet` 对象（译者注：译者也再次提醒，即同一个基类的对象只能有一个）。
 
 **[⬆ Back to Top](#table-of-contents)**
 
